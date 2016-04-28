@@ -32,8 +32,8 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
       hndler = new ReadyHandler {
         private val readyCall = getAsyncCallback { _: Unit => signalReady() }
         private val cancelCall = getAsyncCallback { _: Unit => signalCancel() }
-        override def onReady() = readyCall.invoke()
-        override def onCancel() = cancelCall.invoke()
+        override def onReady() = readyCall.invoke(())
+        override def onCancel() = cancelCall.invoke(())
       }
 
       if (rdy.isReady) {

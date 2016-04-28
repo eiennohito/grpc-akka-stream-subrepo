@@ -22,7 +22,7 @@ class InboundStream[Request, Reply](chan: Channel, md: MethodDescriptor[Request,
         }
 
         val wrapper = new RequestOnceClientCall(call, 2)
-        val obs = new SubscriberToStreamObserver(s)
+        val obs = SubscriberToStreamObserver[Reply](s)
         s.onSubscribe(subs)
 
         ClientCalls.asyncServerStreamingCall(wrapper, req, obs)

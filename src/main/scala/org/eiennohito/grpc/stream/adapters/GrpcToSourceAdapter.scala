@@ -30,7 +30,7 @@ class GrpcToSourceAdapter[T](req: Subscription, rs: RequestStrategy, private var
         private val completeAction = getAsyncCallback { _: Unit => logic.completeStage() }
 
         override def onError(t: Throwable) = errorAction.invoke(t)
-        override def onCompleted() = completeAction.invoke()
+        override def onCompleted() = completeAction.invoke(())
         override def onNext(value: T) = nextAction.invoke(value)
       }
 

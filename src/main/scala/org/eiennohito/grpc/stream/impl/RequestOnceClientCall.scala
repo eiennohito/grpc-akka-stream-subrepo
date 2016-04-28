@@ -20,5 +20,6 @@ class RequestOnceClientCall[R, T](wrapped: ClientCall[R, T], maxVal: Int = Int.M
   }
 
   override def sendMessage(message: R) = wrapped.sendMessage(message)
+
   override def start(responseListener: Listener[T], headers: Metadata) = wrapped.start(responseListener, headers)
 }
