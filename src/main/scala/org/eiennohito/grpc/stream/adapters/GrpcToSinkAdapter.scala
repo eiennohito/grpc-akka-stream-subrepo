@@ -4,6 +4,8 @@ import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHa
 import akka.stream.{Attributes, Inlet, SinkShape}
 import io.grpc.stub.StreamObserver
 
+import scala.concurrent.{Future, Promise}
+
 /**
   * @author eiennohito
   * @since 2016/04/28
@@ -18,26 +20,30 @@ trait ReadyInput {
 }
 
 class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
-  extends GraphStageWithMaterializedValue[SinkShape[T], ReadyHandler] {
+  extends GraphStageWithMaterializedValue[SinkShape[T], Future[ReadyHandler]] {
 
   private val in = Inlet[T]("Grpc.Out")
   override val shape = SinkShape(in)
 
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes) = {
 
-    var hndler: ReadyHandler = null
+    val hndler =  Promise[ReadyHandler]
 
     val logic = new GraphStageLogic(shape) { logic =>
 
-      hndler = new ReadyHandler {
-        private val readyCall = getAsyncCallback { _: Unit => signalReady() }
-        private val cancelCall = getAsyncCallback { _: Unit => signalCancel() }
-        override def onReady() = readyCall.invoke(())
-        override def onCancel() = cancelCall.invoke(())
-      }
+      override def preStart() = {
+        super.preStart()
 
-      if (rdy.isReady) {
-        pull(in)
+        hndler.success(new ReadyHandler {
+          private val readyCall = getAsyncCallback { _: Unit => signalReady() }
+          private val cancelCall = getAsyncCallback { _: Unit => signalCancel() }
+          override def onReady() = readyCall.invoke(())
+          override def onCancel() = cancelCall.invoke(())
+        })
+
+        if (rdy.isReady) {
+          pull(in)
+        }
       }
 
       private def signalReady(): Unit = {
@@ -63,6 +69,6 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
       })
     }
 
-    (logic, hndler)
+    (logic, hndler.future)
   }
 }

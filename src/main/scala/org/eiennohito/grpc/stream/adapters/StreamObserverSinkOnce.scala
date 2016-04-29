@@ -30,6 +30,11 @@ class StreamObserverSinkOnce[T](so: StreamObserver[T]) extends GraphStage[SinkSh
           so.onError(ex)
         }
       })
+
+      override def preStart() = {
+        super.preStart()
+        pull(in)
+      }
     }
   }
 }

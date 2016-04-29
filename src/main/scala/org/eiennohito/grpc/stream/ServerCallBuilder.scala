@@ -11,6 +11,8 @@ import io.grpc.stub.{ClientCalls, ServerCalls, StreamObserver}
 import org.eiennohito.grpc.stream.adapters.{GrpcToSinkAdapter, ReadyHandler, ReadyInput, StreamObserverSinkOnce}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
+import scala.concurrent.{ExecutionContext, Future, Promise}
+
 /**
   * @author eiennohito
   * @since 2016/04/28
@@ -20,7 +22,7 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
     Sink.fromGraph(new StreamObserverSinkOnce(obs).named("GrpcSinkOnce"))
   }
 
-  def asSink(obs: StreamObserver[Reply], rinp: ReadyInput): Sink[Reply, ReadyHandler] = {
+  def asSink(obs: StreamObserver[Reply], rinp: ReadyInput): Sink[Reply, Future[ReadyHandler]] = {
     Sink.fromGraph(new GrpcToSinkAdapter[Reply](obs, rinp).named("GrpcSink"))
   }
 
@@ -34,18 +36,22 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
     }
   }
 
-  private def serverStreaming[T](flow: Flow[Request, Reply, T])(implicit actorMaterializer: ActorMaterializer): ServerCallHandler[Request, Reply] = {
+  private def serverStreaming[T](flow: Flow[Request, Reply, T])(implicit actorMaterializer: ActorMaterializer, ec: ExecutionContext): ServerCallHandler[Request, Reply] = {
     val handler = new ServerCallHandler[Request, Reply] {
       override def startCall(method: MethodDescriptor[Request, Reply], call: ServerCall[Reply], headers: Metadata) = {
         new ServerCall.Listener[Request] {
-          private var readyHandler: ReadyHandler = null
+          private val readyHandler = Promise[ReadyHandler]
 
           private val ssm = new ServerStreamingMethod[Request, Reply] with ReadyInput {
             override def invoke(request: Request, responseObserver: StreamObserver[Reply]) = {
-              val source = Source.single(request)
-              val sink: Sink[Reply, ReadyHandler] = asSink(responseObserver, this)
-              val (_, res) = flow.runWith(source, sink)
-              readyHandler = res
+              try {
+                val source = Source.single(request)
+                val sink: Sink[Reply, Future[ReadyHandler]] = asSink(responseObserver, this)
+                val (_, res) = flow.runWith(source, sink)
+                readyHandler.completeWith(res)
+              } catch {
+                case e: Exception => readyHandler.failure(e)
+              }
             }
 
             override def isReady = call.isReady
@@ -54,16 +60,17 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
           private val handler = ServerCalls.asyncServerStreamingCall(ssm)
           private val listener = handler.startCall(method, call, headers)
 
+          private val readyFuture = readyHandler.future
 
           override def onMessage(message: Request) = listener.onMessage(message)
           override def onCancel() = {
-            readyHandler.onCancel()
+            readyFuture.foreach(_.onCancel())
             listener.onCancel()
           }
           override def onComplete() = listener.onComplete()
           override def onReady() = {
             listener.onReady()
-            readyHandler.onReady()
+            readyFuture.foreach(_.onReady())
           }
           override def onHalfClose() = listener.onHalfClose()
         }
@@ -72,13 +79,13 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
     handler
   }
 
-  def handleWith[T](flow: Flow[Request, Reply, T])(implicit mat: ActorMaterializer) = {
+  def handleWith[T](flow: Flow[Request, Reply, T])(implicit mat: ActorMaterializer, ec: ExecutionContext) = {
     val handler: ServerCallHandler[Request, Reply] = md.getType match {
       case MethodType.UNARY => ServerCalls.asyncUnaryCall(wrapUnary(flow, mat))
       case MethodType.CLIENT_STREAMING => ???
       case MethodType.SERVER_STREAMING => serverStreaming(flow)
       case MethodType.BIDI_STREAMING => ???
-      case MethodType.UNKNOWN => throw new Exception()
+      case MethodType.UNKNOWN => ???
       case _ => throw new Exception()
     }
 
