@@ -1,15 +1,12 @@
 package org.eiennohito.grpc.stream
 
-import akka.NotUsed
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import io.grpc.ClientCall.Listener
-import io.grpc._
 import io.grpc.MethodDescriptor.MethodType
+import io.grpc._
 import io.grpc.stub.ServerCalls.{ServerStreamingMethod, UnaryMethod}
-import io.grpc.stub.{ClientCalls, ServerCalls, StreamObserver}
+import io.grpc.stub.{ServerCalls, StreamObserver}
 import org.eiennohito.grpc.stream.adapters.{GrpcToSinkAdapter, ReadyHandler, ReadyInput, StreamObserverSinkOnce}
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
