@@ -59,16 +59,24 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
 
           private val readyFuture = readyHandler.future
 
-          override def onMessage(message: Request) = listener.onMessage(message)
+          override def onMessage(message: Request) = {
+            listener.onMessage(message)
+          }
           override def onComplete() = listener.onComplete()
           override def onHalfClose() = listener.onHalfClose()
+
           override def onCancel() = {
-            readyFuture.foreach(_.onCancel())
+            if (readyFuture.isCompleted) {
+              readyFuture.value.foreach(_.get.onCancel())
+            } else {
+              readyFuture.foreach(_.onCancel())
+            }
             listener.onCancel()
           }
+
           override def onReady() = {
-            listener.onReady()
             readyFuture.foreach(_.onReady())
+            listener.onReady()
           }
         }
       }

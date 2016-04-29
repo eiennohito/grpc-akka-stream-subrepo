@@ -31,6 +31,8 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
 
     val logic = new GraphStageLogic(shape) { logic =>
 
+      @volatile private var keepGoing = true
+
       override def preStart() = {
         super.preStart()
 
@@ -38,7 +40,10 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
           private val readyCall = getAsyncCallback { _: Unit => signalReady() }
           private val cancelCall = getAsyncCallback { _: Unit => signalCancel() }
           override def onReady() = readyCall.invoke(())
-          override def onCancel() = cancelCall.invoke(())
+          override def onCancel() = {
+            keepGoing = false
+            cancelCall.invoke(())
+          }
         })
 
         if (rdy.isReady) {
@@ -58,7 +63,11 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
       }
 
       setHandler(in, new InHandler {
-        override def onPush() = {
+        override def onPush(): Unit = {
+          if (!keepGoing) {
+             return
+          }
+
           data.onNext(grab(in))
           if (rdy.isReady) {
             pull(in)
