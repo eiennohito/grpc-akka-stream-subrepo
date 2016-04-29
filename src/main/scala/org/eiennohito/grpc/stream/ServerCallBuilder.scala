@@ -18,15 +18,15 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   * @since 2016/04/28
   */
 class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
-  def asSinkOnce(obs: StreamObserver[Reply]) = {
+  private def asSinkOnce(obs: StreamObserver[Reply]) = {
     Sink.fromGraph(new StreamObserverSinkOnce(obs).named("GrpcSinkOnce"))
   }
 
-  def asSink(obs: StreamObserver[Reply], rinp: ReadyInput): Sink[Reply, Future[ReadyHandler]] = {
+  private def asSink(obs: StreamObserver[Reply], rinp: ReadyInput): Sink[Reply, Future[ReadyHandler]] = {
     Sink.fromGraph(new GrpcToSinkAdapter[Reply](obs, rinp).named("GrpcSink"))
   }
 
-  def wrapUnary[T](flow: Flow[Request, Reply, T], mat: ActorMaterializer): UnaryMethod[Request, Reply] = {
+  private def wrapUnary[T](flow: Flow[Request, Reply, T], mat: ActorMaterializer): UnaryMethod[Request, Reply] = {
     new UnaryMethod[Request, Reply] {
       override def invoke(request: Request, responseObserver: StreamObserver[Reply]) = {
         val source = Source.single(request)
@@ -63,16 +63,16 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
           private val readyFuture = readyHandler.future
 
           override def onMessage(message: Request) = listener.onMessage(message)
+          override def onComplete() = listener.onComplete()
+          override def onHalfClose() = listener.onHalfClose()
           override def onCancel() = {
             readyFuture.foreach(_.onCancel())
             listener.onCancel()
           }
-          override def onComplete() = listener.onComplete()
           override def onReady() = {
             listener.onReady()
             readyFuture.foreach(_.onReady())
           }
-          override def onHalfClose() = listener.onHalfClose()
         }
       }
     }
