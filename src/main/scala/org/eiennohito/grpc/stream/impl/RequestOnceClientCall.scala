@@ -15,7 +15,7 @@ class RequestOnceClientCall[R, T](wrapped: ClientCall[R, T], maxVal: Int = Int.M
   override def request(numMessages: Int) = {
     if (firstTime) {
       firstTime = false
-      wrapped.request(numMessages min maxVal)
+      wrapped.request(numMessages)
     }
   }
 
