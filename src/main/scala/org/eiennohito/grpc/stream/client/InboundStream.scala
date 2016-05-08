@@ -32,7 +32,7 @@ class InboundStream[Request, Reply](chan: Channel, md: MethodDescriptor[Request,
 
 
 class ClientAdapterSubscription(call: ClientCall[_, _], alreadyRequested: Int) extends Subscription {
-  override def cancel() = call.cancel()
+  override def cancel() = call.cancel("cancelled by akka", null)
   private val requested = new AtomicInteger(alreadyRequested)
 
   @tailrec
