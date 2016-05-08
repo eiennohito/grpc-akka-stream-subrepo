@@ -9,9 +9,6 @@ import io.grpc.MethodDescriptor
   */
 object GrpcNames {
   def svcName(md: MethodDescriptor[_, _]): String = {
-    val name = md.getFullMethodName
-    val parts = name.split('/')
-    assert(parts.length == 2, s"length of $parts was not 2")
-    parts(0)
+    MethodDescriptor.extractFullServiceName(md.getFullMethodName)
   }
 }

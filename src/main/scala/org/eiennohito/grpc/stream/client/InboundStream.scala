@@ -15,15 +15,19 @@ import scala.annotation.tailrec
   * @author eiennohito
   * @since 2016/04/28
   */
-class InboundStream[Request, Reply](chan: Channel, md: MethodDescriptor[Request, Reply], opts: CallOptions) {
+class InboundStream[Request, Reply](chan: Channel, md: MethodDescriptor[Request, Reply], opts: CallOptions) extends OneInStreamOutCall[Request, Reply] {
   def apply(req: Request): Source[Reply, NotUsed] = {
+    withOpts(req, opts)
+  }
+
+  override def withOpts(o: Request, cops: CallOptions) = {
     val call = chan.newCall(md, opts)
     Source.fromPublisher(new Publisher[Reply] {
       override def subscribe(s: Subscriber[_ >: Reply]): Unit = {
         val subs = new ClientAdapterSubscription(call, 2)
         val wrapper = new RequestOnceClientCall(call, 2)
         val obs = SubscriberToStreamObserver[Reply](s)
-        ClientCalls.asyncServerStreamingCall(wrapper, req, obs)
+        ClientCalls.asyncServerStreamingCall(wrapper, o, obs)
         s.onSubscribe(subs)
       }
     })
