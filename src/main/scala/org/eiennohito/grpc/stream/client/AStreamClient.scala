@@ -8,9 +8,15 @@ import io.grpc.{CallOptions, Channel, MethodDescriptor}
 class AStreamChannel(val chan: Channel)
 
 trait AStreamClient {}
-trait AClientCompanion[T <: AStreamClient] {
+
+trait AClientFactory {
+  type Service <: AStreamClient
   def name: String
-  def build(channel: Channel, callOptions: CallOptions): T
+  def build(channel: Channel, callOptions: CallOptions): Service
+}
+
+trait AClientCompanion[T <: AStreamClient] extends AClientFactory {
+  type Service = T
 }
 
 trait OneInStreamOutCall[T, R] {
