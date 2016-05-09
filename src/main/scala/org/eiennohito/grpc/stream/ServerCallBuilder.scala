@@ -1,12 +1,15 @@
 package org.eiennohito.grpc.stream
 
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.javadsl.RunnableGraph
+import akka.stream.{ActorMaterializer, ClosedShape}
+import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source}
+import com.typesafe.scalalogging.StrictLogging
 import io.grpc.MethodDescriptor.MethodType
 import io.grpc._
 import io.grpc.stub.ServerCalls.{ServerStreamingMethod, UnaryMethod}
 import io.grpc.stub.{ServerCalls, StreamObserver}
 import org.eiennohito.grpc.stream.adapters.{GrpcToSinkAdapter, ReadyHandler, ReadyInput, StreamObserverSinkOnce}
+import org.eiennohito.grpc.stream.server.CallMetadata
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -14,7 +17,10 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   * @author eiennohito
   * @since 2016/04/28
   */
-class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
+class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) extends StrictLogging {
+
+  type FlowFactory[T] = CallMetadata => Future[Flow[Request, Reply, T]]
+
   private def asSinkOnce(obs: StreamObserver[Reply]) = {
     Sink.fromGraph(new StreamObserverSinkOnce(obs).named("GrpcSinkOnce"))
   }
@@ -23,17 +29,33 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
     Sink.fromGraph(new GrpcToSinkAdapter[Reply](obs, rinp).named("GrpcSink"))
   }
 
-  private def wrapUnary[T](flow: Flow[Request, Reply, T], mat: ActorMaterializer): UnaryMethod[Request, Reply] = {
+  private def wrapUnary[T](ffact: FlowFactory[T], mat: ActorMaterializer): UnaryMethod[Request, Reply] = {
     new UnaryMethod[Request, Reply] {
       override def invoke(request: Request, responseObserver: StreamObserver[Reply]) = {
-        val source = Source.single(request)
-        val sink = asSinkOnce(responseObserver)
-        flow.runWith(source, sink)(mat)
+        val context = Context.current()
+        val meta = CallMetadata(context, null) //TODO: get normal metadata instead of this null
+
+        val logic = ffact.apply(meta)
+
+        logic.onComplete {
+          case scala.util.Success(flow) =>
+            val graph = GraphDSL.create(flow) { implicit b => f =>
+              import GraphDSL.Implicits._
+              val src = b.add(Source.single(request))
+              val sink = b.add(asSinkOnce(responseObserver))
+              src ~> f ~> sink
+              ClosedShape
+            }
+
+            RunnableGraph.fromGraph(graph).run(mat)
+          case scala.util.Failure(ex) =>
+            logger.error("can't create flow", ex)
+        }(mat.executionContext)
       }
     }
   }
 
-  private def serverStreaming[T](flow: Flow[Request, Reply, T])(implicit actorMaterializer: ActorMaterializer, ec: ExecutionContext): ServerCallHandler[Request, Reply] = {
+  private def serverStreaming[T](ffact: FlowFactory[T])(implicit actorMaterializer: ActorMaterializer, ec: ExecutionContext): ServerCallHandler[Request, Reply] = {
     val handler = new ServerCallHandler[Request, Reply] {
       override def startCall(method: MethodDescriptor[Request, Reply], call: ServerCall[Reply], headers: Metadata) = {
         new ServerCall.Listener[Request] {
@@ -41,13 +63,23 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
 
           private val ssm = new ServerStreamingMethod[Request, Reply] with ReadyInput {
             override def invoke(request: Request, responseObserver: StreamObserver[Reply]) = {
-              try {
-                val source = Source.single(request)
-                val sink: Sink[Reply, Future[ReadyHandler]] = asSink(responseObserver, this)
-                val (_, res) = flow.runWith(source, sink)
-                readyHandler.completeWith(res)
-              } catch {
-                case e: Exception => readyHandler.failure(e)
+              val ctx = Context.current()
+              val logicF = ffact.apply(CallMetadata(ctx, headers))
+              logicF.onComplete {
+                case scala.util.Success(flow) =>
+                  try {
+                    val source = Source.single(request)
+                    val sink: Sink[Reply, Future[ReadyHandler]] = asSink(responseObserver, this)
+                    val (_, res) = flow.runWith(source, sink)
+                    readyHandler.completeWith(res)
+                  } catch {
+                    case e: Exception =>
+                      responseObserver.onError(e)
+                      readyHandler.failure(e)
+                  }
+                case scala.util.Failure(e) =>
+                  responseObserver.onError(e)
+                  readyHandler.failure(e)
               }
             }
 
@@ -84,7 +116,7 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) {
     handler
   }
 
-  def handleWith[T](flow: Flow[Request, Reply, T])(implicit mat: ActorMaterializer, ec: ExecutionContext) = {
+  def handleWith[T](flow: CallMetadata => Future[Flow[Request, Reply, T]])(implicit mat: ActorMaterializer, ec: ExecutionContext) = {
     val handler: ServerCallHandler[Request, Reply] = md.getType match {
       case MethodType.UNARY => ServerCalls.asyncUnaryCall(wrapUnary(flow, mat))
       case MethodType.CLIENT_STREAMING => ???

@@ -3,10 +3,10 @@ package org.eiennohito.grpc.stream.server
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
 import io.grpc.ServerServiceDefinition.Builder
-import io.grpc.{MethodDescriptor, ServerServiceDefinition}
+import io.grpc.{Context, Metadata, MethodDescriptor, ServerServiceDefinition}
 import org.eiennohito.grpc.stream.ServerCallBuilder
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * @author eiennohito
@@ -30,9 +30,15 @@ object ServiceBuilder {
 }
 
 
+case class CallMetadata(ctx: Context, metadata: Metadata)
+
 class ServiceDefBuilder[T, R](bldr: ServerServiceDefinition.Builder, mdesc: MethodDescriptor[T, R], scb: ServerCallBuilder[T, R]) {
   def handleWith[Mat](flow: Flow[T, R, Mat])(implicit mat: ActorMaterializer, ec: ExecutionContext): Unit = {
-    val sch = scb.handleWith(flow)
+    handleWith(_ => Future.successful(flow))
+  }
+
+  def handleWith[Mat](flowFactory: CallMetadata => Future[Flow[T, R, Mat]])(implicit mat: ActorMaterializer, ec: ExecutionContext): Unit = {
+    val sch = scb.handleWith(flowFactory)
     bldr.addMethod(mdesc, sch)
   }
 }
