@@ -5,8 +5,6 @@ import akka.stream.scaladsl.{Flow, Source}
 import io.grpc.MethodDescriptor.MethodType
 import io.grpc.{CallOptions, Channel, MethodDescriptor}
 
-import scala.reflect.internal.Types.MethodType
-
 
 class AStreamChannel(val chan: Channel)
 
