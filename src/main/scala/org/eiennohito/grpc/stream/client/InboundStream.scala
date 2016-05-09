@@ -4,12 +4,14 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import com.typesafe.scalalogging.StrictLogging
 import io.grpc._
-import io.grpc.stub.ClientCalls
+import io.grpc.stub.{ClientCalls, StreamObserver}
 import org.eiennohito.grpc.stream.impl.{RequestOnceClientCall, SubscriberToStreamObserver}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.annotation.tailrec
+import scala.concurrent.Promise
 
 /**
   * @author eiennohito
@@ -62,5 +64,37 @@ class ClientAdapterSubscription(call: ClientCall[_, _], alreadyRequested: Int) e
     if (n > 0) {
       request0(n.toInt)
     }
+  }
+}
+
+class SingularCallImpl[Request, Reply](chan: Channel, md: MethodDescriptor[Request, Reply], opts: CallOptions)
+  extends UnaryCall[Request, Reply] with StrictLogging {
+  override def withOpts(copts: CallOptions) = {
+    val wrapped = new SingularCallImpl(chan, md, copts)
+    wrapped
+  }
+
+  override def apply(v1: Request) = {
+    val call = chan.newCall(md, opts)
+    val promise = Promise[Reply]
+    ClientCalls.asyncUnaryCall(call, v1, new StreamObserver[Reply] {
+      override def onError(t: Throwable) = {
+        if (!promise.tryFailure(t)) {
+          logger.warn(s"could not finish call $md, was already completed", t)
+        }
+      }
+      override def onCompleted() = {
+        if (!promise.isCompleted) {
+          promise.failure(new Exception(s"no value in call $md"))
+        }
+      }
+      override def onNext(value: Reply) = {
+        if (!promise.trySuccess(value)) {
+          logger.warn(s"could not complete unary call $md")
+        }
+      }
+    })
+
+    promise.future
   }
 }

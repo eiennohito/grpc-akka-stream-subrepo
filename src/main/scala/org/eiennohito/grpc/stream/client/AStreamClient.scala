@@ -5,6 +5,8 @@ import akka.stream.scaladsl.{Flow, Source}
 import io.grpc.MethodDescriptor.MethodType
 import io.grpc.{CallOptions, Channel, MethodDescriptor}
 
+import scala.concurrent.Future
+
 
 class AStreamChannel(val chan: Channel)
 
@@ -20,7 +22,11 @@ trait AClientCompanion[T <: AStreamClient] extends AClientFactory {
   type Service = T
 }
 
-trait OneInStreamOutCall[T, R] {
+trait UnaryCall[T, R] extends (T => Future[R]) {
+  def withOpts(copts: CallOptions): (T => Future[R])
+}
+
+trait OneInStreamOutCall[T, R] extends (T => Source[R, NotUsed]) {
   def apply(o: T): Source[R, NotUsed]
   def withOpts(o: T, cops: CallOptions): Source[R, NotUsed]
 }
@@ -35,6 +41,11 @@ class ClientBuilder(chan: Channel, callOptions: CallOptions) {
   def serverStream[T, R](md: MethodDescriptor[T, R]): OneInStreamOutCall[T, R] = {
     assert(md.getType == MethodType.SERVER_STREAMING)
     new InboundStream[T, R](chan, md, callOptions)
+  }
+
+  def unary[T, R](md: MethodDescriptor[T, R]): UnaryCall[T, R] = {
+    assert(md.getType == MethodType.UNARY)
+    new SingularCallImpl[T, R](chan, md, callOptions)
   }
 }
 
