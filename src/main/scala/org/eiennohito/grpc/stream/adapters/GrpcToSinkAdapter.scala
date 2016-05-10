@@ -2,6 +2,8 @@ package org.eiennohito.grpc.stream.adapters
 
 import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler}
 import akka.stream.{Attributes, Inlet, SinkShape}
+import com.typesafe.scalalogging.StrictLogging
+import io.grpc.{Status, StatusRuntimeException}
 import io.grpc.stub.StreamObserver
 
 import scala.concurrent.{Future, Promise}
@@ -20,7 +22,7 @@ trait ReadyInput {
 }
 
 class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
-  extends GraphStageWithMaterializedValue[SinkShape[T], Future[ReadyHandler]] {
+  extends GraphStageWithMaterializedValue[SinkShape[T], Future[ReadyHandler]] with StrictLogging {
 
   private val in = Inlet[T]("Grpc.Out")
   override val shape = SinkShape(in)
@@ -73,7 +75,14 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
             pull(in)
           }
         }
-        override def onUpstreamFinish() = data.onCompleted()
+
+        override def onUpstreamFinish() = try {
+          data.onCompleted()
+        } catch {
+          case e: StatusRuntimeException =>
+            logger.debug("grpc status exception", e)
+        }
+
         override def onUpstreamFailure(ex: Throwable) = data.onError(ex)
       })
     }
