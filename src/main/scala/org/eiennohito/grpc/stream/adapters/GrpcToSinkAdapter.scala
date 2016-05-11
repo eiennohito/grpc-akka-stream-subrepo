@@ -83,7 +83,9 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
             logger.debug("grpc status exception", e)
         }
 
-        override def onUpstreamFailure(ex: Throwable) = data.onError(ex)
+        override def onUpstreamFailure(ex: Throwable) = {
+          data.onError(Status.UNKNOWN.withCause(ex).asException())
+        }
       })
     }
 
