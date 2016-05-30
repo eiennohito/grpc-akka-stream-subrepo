@@ -74,11 +74,11 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) ex
                     readyHandler.completeWith(res)
                   } catch {
                     case e: Exception =>
-                      responseObserver.onError(e)
+                      responseObserver.onError(Status.INTERNAL.withCause(e).asException())
                       readyHandler.failure(e)
                   }
                 case scala.util.Failure(e) =>
-                  responseObserver.onError(e)
+                  responseObserver.onError(Status.INTERNAL.withCause(e).asException())
                   readyHandler.failure(e)
               }
             }

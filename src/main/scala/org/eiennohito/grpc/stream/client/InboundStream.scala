@@ -23,7 +23,7 @@ class InboundStream[Request, Reply](chan: Channel, md: MethodDescriptor[Request,
   }
 
   override def withOpts(o: Request, cops: CallOptions) = {
-    val call = chan.newCall(md, opts)
+    val call = chan.newCall(md, cops)
     Source.fromPublisher(new Publisher[Reply] {
       override def subscribe(s: Subscriber[_ >: Reply]): Unit = {
         val subs = new ClientAdapterSubscription(call, 2)
