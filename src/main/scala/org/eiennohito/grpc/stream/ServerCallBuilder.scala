@@ -69,7 +69,7 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) ex
                 case scala.util.Success(flow) =>
                   try {
                     val source = Source.single(request)
-                    val sink: Sink[Reply, Future[ReadyHandler]] = asSink(responseObserver, this)
+                    val sink: Sink[Reply, Future[ReadyHandler]] = asSink(responseObserver, this).async
                     val (_, res) = flow.runWith(source, sink)
                     readyHandler.completeWith(res)
                   } catch {
