@@ -1,11 +1,12 @@
 package org.eiennohito.grpc.stream
 
 import akka.stream.javadsl.RunnableGraph
-import akka.stream.{ActorMaterializer, ClosedShape}
 import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source}
+import akka.stream.{ActorMaterializer, ClosedShape}
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc.MethodDescriptor.MethodType
 import io.grpc._
+import io.grpc.internal.GrpcUtil
 import io.grpc.stub.ServerCalls.{ServerStreamingMethod, UnaryMethod}
 import io.grpc.stub.{ServerCalls, StreamObserver}
 import org.eiennohito.grpc.stream.adapters.{GrpcToSinkAdapter, ReadyHandler, ReadyInput, StreamObserverSinkOnce}
@@ -58,6 +59,12 @@ class ServerCallBuilder[Request, Reply](md: MethodDescriptor[Request, Reply]) ex
   private def serverStreaming[T](ffact: FlowFactory[T])(implicit actorMaterializer: ActorMaterializer, ec: ExecutionContext): ServerCallHandler[Request, Reply] = {
     val handler = new ServerCallHandler[Request, Reply] {
       override def startCall(method: MethodDescriptor[Request, Reply], call: ServerCall[Reply], headers: Metadata) = {
+        val compression = headers.get(GrpcUtil.MESSAGE_ENCODING_KEY)
+        if (compression != null && compression != "") {
+          call.setMessageCompression(true)
+          call.setCompression(compression)
+        }
+
         new ServerCall.Listener[Request] {
           private val readyHandler = Promise[ReadyHandler]
 
