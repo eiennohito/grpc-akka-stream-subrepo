@@ -35,6 +35,11 @@ object ServiceBuilder {
 case class CallMetadata(ctx: Context, metadata: Metadata)
 
 class ServiceDefBuilder[T, R](bldr: ServerServiceDefinition.Builder, mdesc: MethodDescriptor[T, R], scb: ServerCallBuilder[T, R]) {
+  def handleSingle(fn: T => Future[R])(implicit mat: ActorMaterializer, ec: ExecutionContext): Unit = {
+    val flow = Flow[T].mapAsync(1)(fn)
+    handleWith(flow)
+  }
+
   def handleWith[Mat](flow: Flow[T, R, Mat])(implicit mat: ActorMaterializer, ec: ExecutionContext): Unit = {
     handleWith(_ => Future.successful(flow))
   }
