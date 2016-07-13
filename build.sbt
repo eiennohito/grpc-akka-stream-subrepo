@@ -3,7 +3,7 @@ lazy val defaults = Def.settings(
   organization := "org.eiennohito",
   version := "0.1-SNAPSHOT",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8")
+  crossScalaVersions := Seq("2.11.8")
 )
 
 lazy val coreDeps = Def.settings(
@@ -12,7 +12,7 @@ lazy val coreDeps = Def.settings(
     "io.grpc" % "grpc-core" % grpcVersion,
     "io.grpc" % "grpc-stub" % grpcVersion,
     "com.trueaccord.scalapb" %% "scalapb-runtime-grpc" % scalaPbVersion,
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
   )
 )
 
