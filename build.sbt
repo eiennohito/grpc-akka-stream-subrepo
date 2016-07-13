@@ -22,7 +22,7 @@ lazy val `grpc-streaming` =
 
 lazy val `grpc-tests` =
   (project in file("tests"))
-  .settings(defaults)
+  .settings(defaults, pbScala())
   .settings(
     name := "grpc-akka-tests",
     libraryDependencies ++= Seq(
