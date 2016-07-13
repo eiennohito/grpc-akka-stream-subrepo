@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package org.eiennohito.grpc;
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  rpc SayHelloSvrStream (HelloRequestStream) returns (stream HelloReply) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloRequestStream {
+  int32 number = 1;
+  string name = 2;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}
+
+message HaveOneOf {
+  oneof request {
+    HelloRequest simple = 1;
+    HelloRequestStream streaming = 2;
+  }
+}
