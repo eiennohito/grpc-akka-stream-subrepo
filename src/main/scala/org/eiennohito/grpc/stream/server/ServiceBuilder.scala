@@ -24,6 +24,7 @@ import io.grpc.{Context, Metadata, MethodDescriptor, ServerServiceDefinition}
 import org.eiennohito.grpc.stream.{GrpcNames, ServerCallBuilder}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.reflect.ClassTag
 
 /**
   * @author eiennohito
@@ -33,7 +34,7 @@ class ServiceBuilder(private val bldr: ServerServiceDefinition.Builder) {
   
   def this(name: String) = this(ServerServiceDefinition.builder(name)) 
   
-  def method[T,R](md: MethodDescriptor[T, R]) = {
+  def method[T: ClassTag,R](md: MethodDescriptor[T, R]) = {
     val scb = new ServerCallBuilder[T, R](md)
     new ServiceDefBuilder(bldr, md, scb)
   }
@@ -42,7 +43,7 @@ class ServiceBuilder(private val bldr: ServerServiceDefinition.Builder) {
 }
 
 object ServiceBuilder {
-  def apply(grpc: ServiceCompanion): ServiceBuilder = new ServiceBuilder(GrpcNames.svcName(grpc))
+  def apply(grpc: ServiceCompanion[_]): ServiceBuilder = new ServiceBuilder(GrpcNames.svcName(grpc))
   def apply(name: String): ServiceBuilder = new ServiceBuilder(name)
   def apply(bldr: Builder): ServiceBuilder = new ServiceBuilder(bldr)
 }

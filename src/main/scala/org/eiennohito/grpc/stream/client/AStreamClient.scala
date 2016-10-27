@@ -39,7 +39,7 @@ trait AClientCompanion[T <: AStreamClient] extends AClientFactory {
 }
 
 trait UnaryCall[T, R] extends (T => Future[R]) {
-  def withOpts(copts: CallOptions): (T => Future[R])
+  def withOpts(copts: CallOptions): UnaryCall[T, R]
 }
 
 trait OneInStreamOutCall[T, R] extends (T => Source[R, NotUsed]) {

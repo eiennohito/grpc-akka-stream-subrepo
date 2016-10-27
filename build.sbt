@@ -27,8 +27,8 @@ lazy val `grpc-tests` =
     name := "grpc-akka-tests",
     libraryDependencies ++= Seq(
       "io.grpc" % "grpc-netty" % grpcVersion,
-      "ch.qos.logback" % "logback-classic" % "1.1.7",
       "org.slf4j" % "jul-to-slf4j" % "1.7.21",
+      "ch.qos.logback" % "logback-classic" % "1.1.7" % Test,
       "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.6" % Test,
       "org.scalatest" %% "scalatest" % "2.2.6" % Test,
       "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % Test
@@ -37,24 +37,17 @@ lazy val `grpc-tests` =
   .dependsOn(`grpc-streaming`)
 
 
-import com.trueaccord.scalapb.{ScalaPbPlugin => PB}
-
-lazy val scalaPbVersion = "0.5.32"
-lazy val grpcVersion = "0.14.1"
+lazy val scalaPbVersion = "0.5.43"
+lazy val grpcVersion = "1.0.1"
 
 def pbScala(): Seq[Setting[_]] = {
-  val config = PB.protobufSettings ++ Seq(
-    PB.flatPackage in PB.protobufConfig := true,
-    PB.javaConversions in PB.protobufConfig := true,
-    PB.scalapbVersion := scalaPbVersion,
-    PB.runProtoc in PB.protobufConfig := (args =>
-      com.github.os72.protocjar.Protoc.runProtoc("-v300" +: args.toArray))
-  )
-
-  val runtimeDep =
-    libraryDependencies += "com.trueaccord.scalapb" %% "scalapb-runtime" % scalaPbVersion % PB.protobufConfig
-
-  config ++ Seq(
-    runtimeDep
+  Def.settings(
+    PB.targets in Compile := Seq(
+      scalapb.gen(flatPackage = true, javaConversions = true, grpc = true) -> (sourceManaged in Compile).value,
+      PB.gens.java -> (sourceManaged in Compile).value
+    ),
+    libraryDependencies ++= Seq(
+      "com.trueaccord.scalapb" %% "scalapb-runtime" % "0.5.43" % "protobuf"
+    )
   )
 }

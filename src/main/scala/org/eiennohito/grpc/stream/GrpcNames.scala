@@ -16,7 +16,7 @@
 
 package org.eiennohito.grpc.stream
 
-import com.trueaccord.scalapb.grpc.ServiceCompanion
+import com.trueaccord.scalapb.grpc.{AbstractService, ServiceCompanion}
 import io.grpc.MethodDescriptor
 
 
@@ -29,7 +29,9 @@ object GrpcNames {
     MethodDescriptor.extractFullServiceName(md.getFullMethodName)
   }
 
-  def svcName(svc: ServiceCompanion): String = {
+  def svcName(svc: ServiceCompanion[_]): String = {
     svc.descriptor.getName
   }
+
+  def svcName[T <: AbstractService](svc: T)(implicit sc: ServiceCompanion[T]): String = svcName(sc)
 }
