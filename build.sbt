@@ -8,11 +8,11 @@ lazy val defaults = Def.settings(
 
 lazy val coreDeps = Def.settings(
   libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-stream" % "2.4.8",
+    "com.typesafe.akka" %% "akka-stream" % "2.4.11",
     "io.grpc" % "grpc-core" % grpcVersion,
     "io.grpc" % "grpc-stub" % grpcVersion,
     "com.trueaccord.scalapb" %% "scalapb-runtime-grpc" % scalaPbVersion,
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0"
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
   )
 )
 
@@ -29,8 +29,8 @@ lazy val `grpc-tests` =
       "io.grpc" % "grpc-netty" % grpcVersion,
       "org.slf4j" % "jul-to-slf4j" % "1.7.21",
       "ch.qos.logback" % "logback-classic" % "1.1.7" % Test,
-      "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.6" % Test,
-      "org.scalatest" %% "scalatest" % "2.2.6" % Test,
+      "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.11" % Test,
+      "org.scalatest" %% "scalatest" % "3.0.0" % Test,
       "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % Test
     )
   )

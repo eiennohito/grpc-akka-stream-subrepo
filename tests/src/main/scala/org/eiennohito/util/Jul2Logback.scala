@@ -18,18 +18,21 @@ package org.eiennohito.util
 
 import java.util.logging.{Level, LogManager, Logger}
 
+import com.typesafe.scalalogging.StrictLogging
 import org.slf4j.bridge.SLF4JBridgeHandler
 
 /**
   * @author eiennohito
   * @since 2016/04/29
   */
-object Jul2Logback {
-  val initialized = {
-    LogManager.getLogManager.reset()
-    SLF4JBridgeHandler.removeHandlersForRootLogger()
-    SLF4JBridgeHandler.install()
-    Logger.getGlobal.setLevel(Level.FINEST)
-    true
-  }
+object Jul2Logback extends StrictLogging {
+
+  LogManager.getLogManager.reset()
+  SLF4JBridgeHandler.removeHandlersForRootLogger()
+  SLF4JBridgeHandler.install()
+  Logger.getGlobal.setLevel(Level.FINEST)
+
+  logger.debug("installed loggers for grpc")
+
+  def init(): Unit = {}
 }

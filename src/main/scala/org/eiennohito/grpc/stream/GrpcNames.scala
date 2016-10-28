@@ -30,7 +30,7 @@ object GrpcNames {
   }
 
   def svcName(svc: ServiceCompanion[_]): String = {
-    svc.descriptor.getName
+    svc.descriptor.getFullName
   }
 
   def svcName[T <: AbstractService](svc: T)(implicit sc: ServiceCompanion[T]): String = svcName(sc)

@@ -20,10 +20,9 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink}
 import akka.testkit.TestKit
-import org.eiennohito.grpc.stream.client.InboundStream
+import org.eiennohito.grpc.stream.impl.client.OneInStreamOutImpl
 
 import scala.concurrent.Await
-
 import scala.concurrent.duration._
 /**
   * @author eiennohito
@@ -34,7 +33,7 @@ class GrpcClientAkkaStreamSpec extends TestKit(ActorSystem()) with GrpcServerCli
 
   "Stream client" - {
     "server->client stream" in {
-      val call = new InboundStream(client, GreeterGrpc.METHOD_SAY_HELLO_SVR_STREAM, defaultOpts)
+      val call = new OneInStreamOutImpl(client, GreeterGrpc.METHOD_SAY_HELLO_SVR_STREAM, defaultOpts)
       val out = call(HelloRequestStream(10, "me"))
       val ex = out.toMat(Sink.seq)(Keep.right)
 

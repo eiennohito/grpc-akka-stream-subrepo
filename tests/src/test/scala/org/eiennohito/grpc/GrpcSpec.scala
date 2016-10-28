@@ -30,7 +30,7 @@ trait GrpcServerClientSpec extends FreeSpecLike with Matchers with BeforeAndAfte
 
   def init: ServerBuilder[_] => Unit
 
-  Jul2Logback.initialized
+  Jul2Logback.init()
 
   val (server, port) = {
     GrpcServer.makeServer(init)
@@ -48,7 +48,7 @@ trait GrpcServerClientSpec extends FreeSpecLike with Matchers with BeforeAndAfte
   }
 
   def defaultOpts: CallOptions = {
-    CallOptions.DEFAULT.withDeadlineAfter(30, TimeUnit.SECONDS)
+    CallOptions.DEFAULT.withDeadlineAfter(10, TimeUnit.SECONDS)
   }
 
   override protected def afterAll() = {

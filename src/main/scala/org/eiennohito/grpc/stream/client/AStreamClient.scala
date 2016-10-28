@@ -16,10 +16,14 @@
 
 package org.eiennohito.grpc.stream.client
 
-import akka.NotUsed
+import java.util.UUID
+
+import akka.stream.ActorMaterializer
+import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Flow, Source}
 import io.grpc.MethodDescriptor.MethodType
-import io.grpc.{CallOptions, Channel, MethodDescriptor}
+import io.grpc.{CallOptions, Channel, Metadata, MethodDescriptor}
+import org.eiennohito.grpc.stream.impl.client.{OneInStreamOutImpl, UnaryCallImpl}
 
 import scala.concurrent.Future
 
@@ -38,30 +42,37 @@ trait AClientCompanion[T <: AStreamClient] extends AClientFactory {
   type Service = T
 }
 
-trait UnaryCall[T, R] extends (T => Future[R]) {
+trait AStreamCall[T, R] {
+  def flow: Flow[T, R, GrpcCallStatus]
+}
+
+trait UnaryCall[T, R] extends AStreamCall[T, R] {
   def withOpts(copts: CallOptions): UnaryCall[T, R]
+  def apply(v: T)(implicit amat: ActorMaterializer): Future[R]
+  def func(implicit amat: ActorMaterializer): T => Future[R] = apply
 }
 
-trait OneInStreamOutCall[T, R] extends (T => Source[R, NotUsed]) {
-  def apply(o: T): Source[R, NotUsed]
-  def withOpts(o: T, cops: CallOptions): Source[R, NotUsed]
+trait OneInStreamOutCall[T, R] extends (T => Source[R, GrpcCallStatus]) with AStreamCall[T, R] {
+  def apply(o: T): Source[R, GrpcCallStatus]
+  def withOpts(cops: CallOptions): OneInStreamOutCall[T, R]
 }
-
 
 trait BidiStreamCall[T, R] {
   def apply(): Flow[T, R, NotUsed]
-  def withOpts(copts: CallOptions): Flow[T, R, NotUsed]
+  def withOpts(copts: CallOptions): BidiStreamCall[T, R]
 }
+
+case class GrpcCallStatus(id: UUID, headers: Future[Metadata], trailers: Future[Metadata], completion: Future[Done])
 
 class ClientBuilder(chan: Channel, callOptions: CallOptions) {
   def serverStream[T, R](md: MethodDescriptor[T, R]): OneInStreamOutCall[T, R] = {
     assert(md.getType == MethodType.SERVER_STREAMING)
-    new InboundStream[T, R](chan, md, callOptions)
+    new OneInStreamOutImpl[T, R](chan, md, callOptions)
   }
 
   def unary[T, R](md: MethodDescriptor[T, R]): UnaryCall[T, R] = {
     assert(md.getType == MethodType.UNARY)
-    new SingularCallImpl[T, R](chan, md, callOptions)
+    new UnaryCallImpl[T, R](chan, md, callOptions)
   }
 }
 

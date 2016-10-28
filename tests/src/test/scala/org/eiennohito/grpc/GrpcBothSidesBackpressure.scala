@@ -23,7 +23,7 @@ import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.testkit.TestKit
 import io.grpc.ServerServiceDefinition
-import org.eiennohito.grpc.stream.client.InboundStream
+import org.eiennohito.grpc.stream.impl.client.OneInStreamOutImpl
 import org.eiennohito.grpc.stream.server.ServiceBuilder
 
 import scala.concurrent.{Await, ExecutionContext}
@@ -61,7 +61,7 @@ class GrpcBothSidesBackpressure extends TestKit(ActorSystem()) with GrpcServerCl
 
   "BothSidesBackpressure" - {
     "do not eat all stream" in {
-      val call = new InboundStream(client, GreeterGrpc.METHOD_SAY_HELLO_SVR_STREAM, defaultOpts)
+      val call = new OneInStreamOutImpl(client, GreeterGrpc.METHOD_SAY_HELLO_SVR_STREAM, defaultOpts)
       val stream = call(HelloRequestStream(500000, "me"))
 
       val data = stream.throttle(10, 30.milli, 2, ThrottleMode.Shaping).take(100).toMat(Sink.seq)(Keep.right)

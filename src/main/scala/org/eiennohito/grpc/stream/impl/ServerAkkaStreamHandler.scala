@@ -2,7 +2,7 @@ package org.eiennohito.grpc.stream.impl
 
 import akka.actor.ActorRef
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
+import akka.stream.stage.{AsyncCallback, GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
 import akka.stream.{ActorMaterializer, Attributes, Inlet, Outlet, SinkShape, SourceShape}
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc.{Context, Metadata, ServerCall, ServerCallHandler, Status}
@@ -10,7 +10,7 @@ import org.eiennohito.grpc.stream.GrpcStreaming
 import org.eiennohito.grpc.stream.server.CallMetadata
 
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success}
 
@@ -26,15 +26,17 @@ class ServerAkkaStreamHandler[Req: ClassTag, Resp](handler: GrpcStreaming.Server
 }
 
 class GrpcServerSrc[Req: ClassTag](call: ServerCall[Req, _])
-  extends GraphStageWithMaterializedValue[SourceShape[Req], Future[ActorRef]] {
+  extends GraphStageWithMaterializedValue[SourceShape[Req], Future[AsyncCallback[Any]]] with StrictLogging {
   val out = Outlet[Req]("GrpcServer.request")
 
   override val shape: SourceShape[Req] = SourceShape(out)
 
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes) = {
-    val promise = Promise[ActorRef]
+    val promise = Promise[AsyncCallback[Any]]
 
     val logic = new GraphStageLogic(shape) with OutHandler {
+      setHandler(out, this)
+
       private val buffer = new mutable.Queue[Req]()
       private val bufSize = inheritedAttributes.get(new Attributes.InputBuffer(8, 16))
       private var inFlight = 0
@@ -44,30 +46,42 @@ class GrpcServerSrc[Req: ClassTag](call: ServerCall[Req, _])
           val toRequest = bufSize.max - inFlight
           call.request(toRequest)
           inFlight += toRequest
+          //logger.debug(s"request $toRequest -> $inFlight")
+        }
+        if (buffer.isEmpty && inFlight > bufSize.max) {
+          completeStage()
         }
       }
 
       override def onPull(): Unit = {
         if (buffer.nonEmpty) {
           push(out, buffer.dequeue())
+          //logger.debug("pushed")
         }
         request()
       }
 
       private def handleInput(o: Req): Unit = {
+        //logger.debug("input")
+        inFlight -= 1
         if (isAvailable(out) && buffer.isEmpty) {
           push(out, o)
         } else buffer += o
+        request()
       }
 
       override def preStart() = {
         super.preStart()
         val reqTag = implicitly[ClassTag[Req]]
-        val actor = getStageActor {
-          case (_, GrpcMessages.Complete) => completeStage()
-          case (_, reqTag(msg)) => handleInput(msg)
+        val cb = getAsyncCallback[Any] {
+          case GrpcMessages.Complete => completeStage()
+          case GrpcMessages.StopRequests =>
+            inFlight = Int.MaxValue
+            //logger.debug("stopreqs")
+            request()
+          case reqTag(msg) => handleInput(msg)
         }
-        promise.success(actor.ref)
+        promise.success(cb)
       }
       request()
     }
@@ -75,7 +89,8 @@ class GrpcServerSrc[Req: ClassTag](call: ServerCall[Req, _])
   }
 }
 
-class GrpcServerSink[Resp](call: ServerCall[_, Resp]) extends GraphStageWithMaterializedValue[SinkShape[Resp], Future[ActorRef]] {
+class GrpcServerSink[Resp](call: ServerCall[_, Resp])
+  extends GraphStageWithMaterializedValue[SinkShape[Resp], Future[ActorRef]] with StrictLogging {
   val in = Inlet[Resp]("GrpcServer.response")
 
   override val shape = SinkShape(in)
@@ -83,7 +98,10 @@ class GrpcServerSink[Resp](call: ServerCall[_, Resp]) extends GraphStageWithMate
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[ActorRef]) = {
     val promise = Promise[ActorRef]()
     val logic = new GraphStageLogic(shape) with InHandler {
+      setHandler(in, this)
+
       override def onPush(): Unit = {
+        //logger.debug("-> pushed")
         call.sendMessage(grab(in))
         if (call.isReady) {
           pull(in)
@@ -96,14 +114,19 @@ class GrpcServerSink[Resp](call: ServerCall[_, Resp]) extends GraphStageWithMate
           case (_, GrpcMessages.Ready) => if (!hasBeenPulled(in)) pull(in)
         }
         promise.success(actor.ref)
+        pull(in)
+        //logger.debug("started")
       }
 
       override def onUpstreamFinish() = {
-        call.close(Status.OK, null)
+        //logger.debug("finished")
+        call.close(Status.OK, new Metadata())
+        super.onUpstreamFinish()
       }
 
       override def onUpstreamFailure(ex: Throwable) = {
-        call.close(Status.fromThrowable(ex), Status.trailersFromThrowable(ex))
+        call.close(Status.fromThrowable(ex), ScalaMetadata.forException(ex))
+        super.onUpstreamFinish()
       }
     }
     (logic, promise.future)
@@ -118,7 +141,7 @@ class ServerAkkaHandler[Req: ClassTag, Resp](
   amat: ActorMaterializer
 ) extends ServerCall.Listener[Req] with StrictLogging {
 
-  private [this] val inputPromise = Promise[ActorRef]()
+  private [this] val inputPromise = Promise[AsyncCallback[Any]]()
   private [this] val outputPromise = Promise[ActorRef]()
 
   {
@@ -130,38 +153,54 @@ class ServerAkkaHandler[Req: ClassTag, Resp](
       case Success(f) =>
         val src = Source.fromGraph(new GrpcServerSrc[Req](call))
         val sink = Sink.fromGraph(new GrpcServerSink[Resp](call))
-        val (f1, f2) = f.runWith(src, sink)
+
+        val baseId = ScalaMetadata.get(headers, ScalaMetadata.ReqId)
+
+        val flow = baseId match {
+          case None => f
+          case Some(id) => f.addAttributes(Attributes(ScalaMetadata.InitialRequestId(id)))
+        }
+
+        call.sendHeaders(new Metadata())
+        val (f1, f2) = flow.runWith(src, sink)
         inputPromise.completeWith(f1)
         outputPromise.completeWith(f2)
       case Failure(e) =>
         logger.error("could not create logic", e)
-        call.close(Status.UNKNOWN.withCause(e), null)
+        call.close(Status.UNKNOWN.withCause(e), ScalaMetadata.forException(e))
         inputPromise.failure(e)
         outputPromise.failure(e)
     }
   }
 
-  private[this] val inputRef = inputPromise.future
-  private[this] val outputRef = outputPromise.future
+  //TODO fix after https://github.com/akka/akka/issues/21741 or https://github.com/akka/akka/issues/20503
+  import scala.concurrent.duration._
+  private[this] lazy val inputRef: AsyncCallback[Any] = Await.result(inputPromise.future, 1.second)
+  private[this] lazy val outputRef = Await.result(outputPromise.future, 1.second)
 
   override def onMessage(message: Req) = {
-    inputRef.map(_ ! message)
+    inputRef.invoke(message)
+    //logger.debug("msg")
   }
 
   override def onCancel() = {
-    inputRef.map(_ ! GrpcMessages.Complete)
-    outputRef.map(_ ! GrpcMessages.Complete)
+    inputRef.invoke(GrpcMessages.Complete)
+    outputRef ! GrpcMessages.Complete
+    //logger.debug("cancel")
   }
 
   override def onComplete() = {
-    outputRef.map(_ ! GrpcMessages.Complete)
+    inputRef.invoke(GrpcMessages.Complete)
+    //logger.debug("cmpl")
   }
 
   override def onReady() = {
-    outputRef.map(_ ! GrpcMessages.Ready)
+    outputRef ! GrpcMessages.Ready
+    //logger.debug("rdy")
   }
 
   override def onHalfClose() = {
-    inputRef.map(_ ! GrpcMessages.Complete)
+    inputRef.invoke(GrpcMessages.StopRequests)
+    //logger.debug("half")
   }
 }
