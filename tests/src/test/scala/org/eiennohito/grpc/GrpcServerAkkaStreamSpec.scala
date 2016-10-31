@@ -31,13 +31,7 @@ import scala.concurrent.ExecutionContext
   * @author eiennohito
   * @since 2016/04/29
   */
-class GrpcServerAkkaStreamSpec extends TestKit(ActorSystem()) with GrpcServerClientSpec {
-
-
-  override protected def afterAll() = {
-    super.afterAll()
-    system.terminate()
-  }
+class GrpcServerAkkaStreamSpec extends GrpcAkkaSpec {
 
   override def init = { b => b.addService(AkkaServer.make(ActorMaterializer.create(system), system.dispatcher)) }
 

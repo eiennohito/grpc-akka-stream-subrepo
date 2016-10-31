@@ -75,6 +75,10 @@ class GrpcBothSidesBackpressure extends TestKit(ActorSystem()) with GrpcServerCl
       results2 should have length 10
     }
   }
+
+  override protected def afterAll() = {
+    system.terminate()
+  }
 }
 
 

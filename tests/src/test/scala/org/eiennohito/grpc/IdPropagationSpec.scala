@@ -1,26 +1,21 @@
 package org.eiennohito.grpc
 
-import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Attributes, Outlet, SourceShape}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.stage.{GraphStage, GraphStageLogic, OutHandler}
-import akka.testkit.TestKit
+import akka.stream.{Attributes, Outlet, SourceShape}
 import org.eiennohito.grpc.stream.client.ClientBuilder
 import org.eiennohito.grpc.stream.impl.ScalaMetadata
 import org.eiennohito.grpc.stream.server.ServiceBuilder
-import org.scalatest.{BeforeAndAfterAll, LoneElement}
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.Await
 
 /**
   * @author eiennohito
   * @since 2016/10/28
   */
-class IdPropagationSpec extends TestKit(ActorSystem()) with GrpcServerClientSpec with LoneElement with BeforeAndAfterAll {
+class IdPropagationSpec extends GrpcAkkaSpec {
   import scala.concurrent.duration._
 
-  implicit lazy val amat = ActorMaterializer.create(system)
-  implicit def ec: ExecutionContext = system.dispatcher
   override def init = { _.addService(serverSvc) }
 
   lazy val clientImpl = {

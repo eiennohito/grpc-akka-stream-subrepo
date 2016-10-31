@@ -1,23 +1,18 @@
 package org.eiennohito.grpc
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
-import akka.testkit.TestKit
 import org.eiennohito.grpc.stream.impl.client.UnaryCallImpl
 import org.eiennohito.grpc.stream.server.ServiceBuilder
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.Await
 
 /**
   * @author eiennohito
   * @since 2016/10/28
   */
-class ExceptionsArePropagatedToClient extends TestKit(ActorSystem()) with GrpcServerClientSpec {
+class ExceptionsArePropagatedToClient extends GrpcAkkaSpec {
   import scala.concurrent.duration._
 
-  implicit lazy val amat = ActorMaterializer.create(system)
-  implicit def ec: ExecutionContext = system.dispatcher
   override def init = { _.addService(failSvc) }
 
   def failSvc = {
