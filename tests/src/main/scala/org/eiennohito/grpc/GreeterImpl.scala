@@ -16,9 +16,10 @@
 
 package org.eiennohito.grpc
 
+import scala.collection.mutable
+
 import io.grpc.stub.StreamObserver
 import org.eiennohito.grpc.GreeterGrpc.Greeter
-
 import scala.concurrent.Future
 
 /**
@@ -36,4 +37,15 @@ class GreeterImpl extends Greeter {
     }
     responseObserver.onCompleted()
   }
+
+  def sayHelloClientStream(responseObserver: StreamObserver[HelloStreamReply]): StreamObserver[HelloRequest] =
+    new StreamObserver[HelloRequest] {
+      val list = mutable.Seq.empty[HelloRequest]
+      def onError(t: Throwable): Unit = responseObserver.onError(t)
+      def onNext(value: HelloRequest): Unit = list :+ value
+      def onCompleted(): Unit = {
+        responseObserver.onNext(HelloStreamReply(list.size, "Hi, " + list.mkString(", ")))
+        responseObserver.onCompleted()
+      }
+    }
 }
