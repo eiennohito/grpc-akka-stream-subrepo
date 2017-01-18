@@ -1,0 +1,12 @@
+language: scala
+scala:
+  - 2.11.8
+jdk:
+  - oraclejdk8
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION clean grpc-tests/test
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt/boot
+
