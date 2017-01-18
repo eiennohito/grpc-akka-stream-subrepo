@@ -1,6 +1,6 @@
 package org.eiennohito.grpc.stream.impl.client
 
-import akka.stream.{ActorMaterializer, Fusing}
+import akka.stream.{Materializer, Fusing}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc.{CallOptions, Channel, MethodDescriptor}
@@ -28,7 +28,7 @@ class UnaryCallImpl[Request, Reply](
     Flow.fromGraph(Fusing.aggressive(flow))
   }
 
-  override def apply(v1: Request)(implicit amat: ActorMaterializer) = {
+  override def apply(v1: Request)(implicit mat: Materializer) = {
     Source.single(v1).via(flow).runWith(Sink.head)
   }
 }

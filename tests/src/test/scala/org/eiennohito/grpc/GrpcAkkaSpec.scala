@@ -13,7 +13,7 @@ import scala.concurrent.ExecutionContext
   */
 abstract class GrpcAkkaSpec extends TestKit(ActorSystem()) with GrpcServerClientSpec with LoneElement {
   implicit def ec: ExecutionContext = system.dispatcher
-  implicit lazy val amat = ActorMaterializer.create(system)
+  implicit lazy val mat = ActorMaterializer.create(system)
 
   override protected def afterAll() = {
     super.afterAll()

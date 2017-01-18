@@ -35,7 +35,7 @@ import scala.concurrent.duration._
   */
 class GrpcBothSidesBackpressure extends TestKit(ActorSystem()) with GrpcServerClientSpec {
 
-  implicit lazy val amat = ActorMaterializer.create(system)
+  implicit lazy val mat = ActorMaterializer.create(system)
   implicit def ec: ExecutionContext = system.dispatcher
 
   override def init = { b =>

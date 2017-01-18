@@ -18,7 +18,7 @@ package org.eiennohito.grpc.stream.client
 
 import java.util.UUID
 
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Flow, Source}
 import io.grpc.MethodDescriptor.MethodType
@@ -48,8 +48,8 @@ trait AStreamCall[T, R] {
 
 trait UnaryCall[T, R] extends AStreamCall[T, R] {
   def withOpts(copts: CallOptions): UnaryCall[T, R]
-  def apply(v: T)(implicit amat: ActorMaterializer): Future[R]
-  def func(implicit amat: ActorMaterializer): T => Future[R] = apply
+  def apply(v: T)(implicit mat: Materializer): Future[R]
+  def func(implicit mat: Materializer): T => Future[R] = apply
 }
 
 trait OneInStreamOutCall[T, R] extends (T => Source[R, GrpcCallStatus]) with AStreamCall[T, R] {

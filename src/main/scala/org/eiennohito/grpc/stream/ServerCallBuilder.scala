@@ -16,7 +16,7 @@
 
 package org.eiennohito.grpc.stream
 
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc._
@@ -31,7 +31,7 @@ import scala.reflect.ClassTag
   * @since 2016/04/28
   */
 class ServerCallBuilder[Request: ClassTag, Reply](md: MethodDescriptor[Request, Reply]) extends StrictLogging {
-  def handleWith[T](flow: CallMetadata => Future[Flow[Request, Reply, T]])(implicit mat: ActorMaterializer, ec: ExecutionContext) = {
+  def handleWith[T](flow: CallMetadata => Future[Flow[Request, Reply, T]])(implicit mat: Materializer, ec: ExecutionContext) = {
     val handler: ServerCallHandler[Request, Reply] = new ServerAkkaStreamHandler[Request, Reply](flow)
     handler
   }

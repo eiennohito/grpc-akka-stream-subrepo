@@ -3,7 +3,7 @@ package org.eiennohito.grpc.stream.impl
 import akka.actor.ActorRef
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.stage.{AsyncCallback, GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
-import akka.stream.{ActorMaterializer, Attributes, Inlet, Outlet, SinkShape, SourceShape}
+import akka.stream.{Materializer, Attributes, Inlet, Outlet, SinkShape, SourceShape}
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc.{Context, Metadata, ServerCall, ServerCallHandler, Status}
 import org.eiennohito.grpc.stream.GrpcStreaming
@@ -18,7 +18,7 @@ import scala.util.{Failure, Success}
   * @author eiennohito
   * @since 2016/10/27
   */
-class ServerAkkaStreamHandler[Req: ClassTag, Resp](handler: GrpcStreaming.ServerHandler[Req, Resp, _])(implicit ec: ExecutionContext, amat: ActorMaterializer)
+class ServerAkkaStreamHandler[Req: ClassTag, Resp](handler: GrpcStreaming.ServerHandler[Req, Resp, _])(implicit ec: ExecutionContext, mat: Materializer)
   extends ServerCallHandler[Req, Resp] {
   override def startCall(call: ServerCall[Req, Resp], headers: Metadata) = {
     new ServerAkkaHandler(call, headers, handler)
@@ -138,7 +138,7 @@ class ServerAkkaHandler[Req: ClassTag, Resp](
   headers: Metadata,
   handler: GrpcStreaming.ServerHandler[Req, Resp, _])(
   implicit ec: ExecutionContext,
-  amat: ActorMaterializer
+  mat: Materializer
 ) extends ServerCall.Listener[Req] with StrictLogging {
 
   private [this] val inputPromise = Promise[AsyncCallback[Any]]()

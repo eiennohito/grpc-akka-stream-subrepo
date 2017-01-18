@@ -16,7 +16,7 @@
 
 package org.eiennohito.grpc.stream.server
 
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import com.trueaccord.scalapb.grpc.ServiceCompanion
 import io.grpc.ServerServiceDefinition.Builder
@@ -52,16 +52,16 @@ object ServiceBuilder {
 case class CallMetadata(ctx: Context, metadata: Metadata)
 
 class ServiceDefBuilder[T, R](bldr: ServerServiceDefinition.Builder, mdesc: MethodDescriptor[T, R], scb: ServerCallBuilder[T, R]) {
-  def handleSingle(fn: T => Future[R])(implicit mat: ActorMaterializer, ec: ExecutionContext): Unit = {
+  def handleSingle(fn: T => Future[R])(implicit mat: Materializer, ec: ExecutionContext): Unit = {
     val flow = Flow[T].mapAsync(1)(fn)
     handleWith(flow)
   }
 
-  def handleWith[Mat](flow: Flow[T, R, Mat])(implicit mat: ActorMaterializer, ec: ExecutionContext): Unit = {
+  def handleWith[Mat](flow: Flow[T, R, Mat])(implicit mat: Materializer, ec: ExecutionContext): Unit = {
     handleWith(_ => Future.successful(flow))
   }
 
-  def handleWith[Mat](flowFactory: CallMetadata => Future[Flow[T, R, Mat]])(implicit mat: ActorMaterializer, ec: ExecutionContext): Unit = {
+  def handleWith[Mat](flowFactory: CallMetadata => Future[Flow[T, R, Mat]])(implicit mat: Materializer, ec: ExecutionContext): Unit = {
     val sch = scb.handleWith(flowFactory)
     bldr.addMethod(mdesc, sch)
   }

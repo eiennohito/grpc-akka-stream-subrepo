@@ -18,7 +18,7 @@ package org.eiennohito.grpc
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.stream.scaladsl.{Flow, Source}
 import akka.testkit.TestKit
 import io.grpc.{MethodDescriptor, ServerServiceDefinition}
@@ -64,7 +64,7 @@ object AkkaServer {
     Flow[HelloRequestStream].flatMapConcat(r => Source((0 until r.number).map { i => HelloReply(s"Hi, ${r.name} #$i")}))
   }
 
-  def make(implicit mat: ActorMaterializer, ec: ExecutionContext): ServerServiceDefinition = {
+  def make(implicit mat: Materializer, ec: ExecutionContext): ServerServiceDefinition = {
     val names = GreeterGrpc.METHOD_SAY_HELLO.getFullMethodName.split('/')
     val bldr = ServerServiceDefinition.builder(names(0))
     val bld2 = ServiceBuilder(bldr)
