@@ -74,6 +74,20 @@ class GrpcBothSidesBackpressure extends TestKit(ActorSystem()) with GrpcServerCl
       val results2 = Await.result(graph.run(), 30.seconds)
       results2 should have length 10
     }
+
+    "produce the same results with or without consumer backpressure" in {
+      val call = new OneInStreamOutImpl(client, GreeterGrpc.METHOD_SAY_HELLO_SVR_STREAM, defaultOpts)
+
+      val stream1 = call(HelloRequestStream(100, "me"))
+      val data1 = stream1.throttle(10, 30.milli, 1, ThrottleMode.Shaping).toMat(Sink.seq)(Keep.right)
+      val results1 = Await.result(data1.run(), 30.seconds)
+
+      val stream2 = call(HelloRequestStream(100, "me"))
+      val data2 = stream2.toMat(Sink.seq)(Keep.right)
+      val results2 = Await.result(data2.run(), 30.seconds)
+
+      results1.length shouldBe results2.length
+    }
   }
 
   override protected def afterAll() = {
