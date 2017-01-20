@@ -101,6 +101,7 @@ class GrpcClientHandler[Req, Resp](
             completeStage()
           } else {
             isCompleted = true
+            cancel(in)
           }
         } else {
           val ex = ScalaMetadata.get(m, ScalaMetadata.ScalaException) match {
