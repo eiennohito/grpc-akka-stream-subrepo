@@ -16,9 +16,8 @@
 
 package org.eiennohito.grpc
 
-import akka.stream.scaladsl.{Keep, Sink}
-import org.eiennohito.grpc.stream.impl.client.OneInStreamOutImpl
-
+import akka.stream.scaladsl.{Keep, Sink, Source}
+import org.eiennohito.grpc.stream.impl.client.{OneInStreamOutImpl, StreamInOneOutCallImpl}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 /**
@@ -31,10 +30,19 @@ class GrpcClientAkkaStreamSpec extends GrpcAkkaSpec {
   "Stream client" - {
     "server->client stream" in {
       val call = new OneInStreamOutImpl(client, GreeterGrpc.METHOD_SAY_HELLO_SVR_STREAM, defaultOpts)
-      val out = call(HelloRequestStream(10, "me"))
-      val ex = out.toMat(Sink.seq)(Keep.right)
+      val source = call(HelloRequestStream(10, "me"))
+      val ex = source.toMat(Sink.seq)(Keep.right)
       val result = Await.result(ex.run(), 30.seconds)
       result should have length 10
+    }
+
+    "client->server stream" in {
+      val call = new StreamInOneOutCallImpl(client, GreeterGrpc.METHOD_SAY_HELLO_CLIENT_STREAM, defaultOpts)
+      val sink = call.apply()
+      val source = Source(1 to 10).map(i => HelloRequest("a" + i))
+      val ex = source.toMat(sink)(Keep.right)
+      val result = Await.result(ex.run()._2, 30.seconds)
+      result.number shouldBe 10
     }
   }
 }

@@ -40,11 +40,11 @@ class GreeterImpl extends Greeter {
 
   def sayHelloClientStream(responseObserver: StreamObserver[HelloStreamReply]): StreamObserver[HelloRequest] =
     new StreamObserver[HelloRequest] {
-      val list = mutable.Seq.empty[HelloRequest]
+      val arr = mutable.ArrayBuffer.empty[HelloRequest]
       def onError(t: Throwable): Unit = responseObserver.onError(t)
-      def onNext(value: HelloRequest): Unit = list :+ value
+      def onNext(value: HelloRequest): Unit = arr += value
       def onCompleted(): Unit = {
-        responseObserver.onNext(HelloStreamReply(list.size, "Hi, " + list.mkString(", ")))
+        responseObserver.onNext(HelloStreamReply(arr.size, "Hi, " + arr.mkString(", ")))
         responseObserver.onCompleted()
       }
     }
