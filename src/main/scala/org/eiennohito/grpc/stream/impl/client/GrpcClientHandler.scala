@@ -39,6 +39,7 @@ class GrpcClientHandler[Req, Resp](
       private val params = inheritedAttributes.get(Attributes.InputBuffer(8, 16))
       private val buffer = new mutable.Queue[Resp]()
       private var inFlight = 0
+      private var isCompleted = false
 
       private def request(): Unit = {
         if (inFlight < params.initial && buffer.size < params.initial) {
@@ -59,6 +60,9 @@ class GrpcClientHandler[Req, Resp](
       override def onPull(): Unit = {
         if (buffer.nonEmpty) {
           push(out, buffer.dequeue())
+        } else if (isCompleted) {
+          cmpl.success(Done)
+          completeStage()
         }
         request()
       }
@@ -92,8 +96,13 @@ class GrpcClientHandler[Req, Resp](
       private def handleClose(t: Status, m: Metadata) = {
         trls.success(m)
         if (t.isOk) {
-          cmpl.success(Done)
-          completeStage()
+          if (buffer.isEmpty) {
+            cmpl.success(Done)
+            completeStage()
+          } else {
+            isCompleted = true
+            cancel(in)
+          }
         } else {
           val ex = ScalaMetadata.get(m, ScalaMetadata.ScalaException) match {
             case None => t.asException()
