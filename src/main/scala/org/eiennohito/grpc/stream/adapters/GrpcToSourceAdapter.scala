@@ -39,11 +39,12 @@ class GrpcToSourceAdapter[T](req: Subscription, rs: RequestStrategy, private var
 
     val logic = new GraphStageLogic(shape) { logic =>
       val queue = new scala.collection.mutable.Queue[T]()
+      var isCompleted = false
 
       observer = new StreamObserver[T] {
         private val nextAction = getAsyncCallback { x: T => supply(x) }
         private val errorAction = getAsyncCallback { x: Throwable => logic.failStage(x) }
-        private val completeAction = getAsyncCallback { _: Unit => logic.completeStage() }
+        private val completeAction = getAsyncCallback { _: Unit => complete() }
 
         override def onError(t: Throwable) = errorAction.invoke(t)
         override def onCompleted() = completeAction.invoke(())
@@ -61,9 +62,19 @@ class GrpcToSourceAdapter[T](req: Subscription, rs: RequestStrategy, private var
       }
 
       private def requestDemand() = {
-        val demand = rs.requestDemand(inFlight)
-        if (demand > 0) {
-          req.request(demand)
+        if (!isCompleted) {
+          val demand = rs.requestDemand(inFlight)
+          if (demand > 0) {
+            req.request(demand)
+          }
+        }
+      }
+
+      private def complete(): Unit = {
+        if (queue.isEmpty) {
+          logic.completeStage()
+        } else {
+          isCompleted = true
         }
       }
 
@@ -72,6 +83,8 @@ class GrpcToSourceAdapter[T](req: Subscription, rs: RequestStrategy, private var
           if (queue.nonEmpty) {
             push(out, queue.dequeue())
             requestDemand()
+          } else if (isCompleted) {
+            logic.completeStage()
           }
         }
 
