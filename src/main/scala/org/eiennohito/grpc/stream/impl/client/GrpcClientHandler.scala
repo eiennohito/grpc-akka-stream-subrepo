@@ -51,7 +51,7 @@ class GrpcClientHandler[Req, Resp](
       override def onPush(): Unit = {
         val msg = grab(in)
         call.sendMessage(msg)
-        if (isAvailable(in)) {
+        if (!hasBeenPulled(in) && call.isReady) {
           pull(in)
         }
       }
