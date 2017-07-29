@@ -37,8 +37,8 @@ lazy val `grpc-tests` =
   .dependsOn(`grpc-streaming`)
 
 
-lazy val scalaPbVersion = "0.5.47"
-lazy val grpcVersion = "1.0.3"
+lazy val scalaPbVersion = "0.6.1"
+lazy val grpcVersion = "1.5.0"
 
 def pbScala(): Seq[Setting[_]] = {
   Def.settings(
