@@ -12,7 +12,7 @@ lazy val coreDeps = Def.settings(
     "io.grpc" % "grpc-core" % grpcVersion,
     "io.grpc" % "grpc-stub" % grpcVersion,
     "com.trueaccord.scalapb" %% "scalapb-runtime-grpc" % scalaPbVersion,
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.7.2"
   )
 )
 
