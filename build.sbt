@@ -2,13 +2,13 @@
 lazy val defaults = Def.settings(
   organization := "org.eiennohito",
   version := "0.1-SNAPSHOT",
-  scalaVersion := "2.12.1",
-  crossScalaVersions := Seq("2.11.8", "2.12.1")
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.11.11", "2.12.4")
 )
 
 lazy val coreDeps = Def.settings(
   libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-stream" % "2.4.16",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.6",
     "io.grpc" % "grpc-core" % grpcVersion,
     "io.grpc" % "grpc-stub" % grpcVersion,
     "com.trueaccord.scalapb" %% "scalapb-runtime-grpc" % scalaPbVersion,
@@ -27,18 +27,18 @@ lazy val `grpc-tests` =
     name := "grpc-akka-tests",
     libraryDependencies ++= Seq(
       "io.grpc" % "grpc-netty" % grpcVersion,
-      "org.slf4j" % "jul-to-slf4j" % "1.7.22",
-      "ch.qos.logback" % "logback-classic" % "1.1.9" % Test,
-      "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.16" % Test,
-      "org.scalatest" %% "scalatest" % "3.0.1" % Test,
-      "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % Test
+      "org.slf4j" % "jul-to-slf4j" % "1.7.25",
+      "ch.qos.logback" % "logback-classic" % "1.2.3" % Test,
+      "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.6" % Test,
+      "org.scalatest" %% "scalatest" % "3.0.4" % Test,
+      "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
     )
   )
   .dependsOn(`grpc-streaming`)
 
 
-lazy val scalaPbVersion = "0.6.1"
-lazy val grpcVersion = "1.5.0"
+lazy val scalaPbVersion = "0.6.6"
+lazy val grpcVersion = "1.6.1"
 
 def pbScala(): Seq[Setting[_]] = {
   Def.settings(
