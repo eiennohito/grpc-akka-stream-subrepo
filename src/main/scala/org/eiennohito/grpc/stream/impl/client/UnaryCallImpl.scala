@@ -1,6 +1,6 @@
 package org.eiennohito.grpc.stream.impl.client
 
-import akka.stream.{Materializer, Fusing}
+import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc.{CallOptions, Channel, MethodDescriptor}
@@ -25,7 +25,7 @@ class UnaryCallImpl[Request, Reply](
       .take(1)
       .viaMat(Flow.fromGraph(new GrpcClientHandler[Request, Reply](chan, md, opts)))(Keep.right)
       .take(1)
-    Flow.fromGraph(Fusing.aggressive(flow))
+    Flow.fromGraph(flow)
   }
 
   override def apply(v1: Request)(implicit mat: Materializer) = {

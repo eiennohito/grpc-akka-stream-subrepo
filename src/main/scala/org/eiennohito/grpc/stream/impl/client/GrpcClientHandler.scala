@@ -42,7 +42,7 @@ class GrpcClientHandler[Req, Resp](
       private var isCompleted = false
 
       private def request(): Unit = {
-        if (inFlight < params.initial && buffer.size < params.initial) {
+        if (inFlight < params.initial && buffer.lengthCompare(params.initial) < 0) {
           val toRequest = params.max - inFlight
           call.request(toRequest)
           inFlight += toRequest

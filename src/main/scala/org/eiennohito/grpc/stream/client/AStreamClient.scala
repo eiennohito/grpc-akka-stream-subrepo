@@ -23,7 +23,8 @@ import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import io.grpc.MethodDescriptor.MethodType
 import io.grpc.{CallOptions, Channel, Metadata, MethodDescriptor}
-import org.eiennohito.grpc.stream.impl.client.{OneInStreamOutImpl, StreamInOneOutCallImpl, UnaryCallImpl}
+import org.eiennohito.grpc.stream.impl.client.{BidiCallImpl, OneInStreamOutImpl, StreamInOneOutCallImpl, UnaryCallImpl}
+
 import scala.concurrent.Future
 
 
@@ -61,9 +62,10 @@ trait StreamInOneOutCall[T, R] extends (() => Sink[T, (GrpcCallStatus, Future[R]
   def withOpts(cops: CallOptions): StreamInOneOutCall[T, R]
 }
 
-trait BidiStreamCall[T, R] {
-  def apply(): Flow[T, R, NotUsed]
+trait BidiStreamCall[T, R] extends AStreamCall[T, R] {
+  def apply(): Flow[T, R, GrpcCallStatus] = flow
   def withOpts(copts: CallOptions): BidiStreamCall[T, R]
+  override def flow: Flow[T, R, GrpcCallStatus]
 }
 
 case class GrpcCallStatus(id: UUID, headers: Future[Metadata], trailers: Future[Metadata], completion: Future[Done])
@@ -82,6 +84,11 @@ class ClientBuilder(chan: Channel, callOptions: CallOptions) {
   def unary[T, R](md: MethodDescriptor[T, R]): UnaryCall[T, R] = {
     assert(md.getType == MethodType.UNARY)
     new UnaryCallImpl[T, R](chan, md, callOptions)
+  }
+
+  def bidiStream[T, R](md: MethodDescriptor[T, R]): BidiStreamCall[T, R] = {
+    assert(md.getType == MethodType.BIDI_STREAMING)
+    new BidiCallImpl[T, R](chan, md, callOptions)
   }
 }
 

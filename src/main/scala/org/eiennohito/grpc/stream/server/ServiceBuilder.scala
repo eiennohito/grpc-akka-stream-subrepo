@@ -18,9 +18,10 @@ package org.eiennohito.grpc.stream.server
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
-import com.trueaccord.scalapb.grpc.ServiceCompanion
+
+import scalapb.grpc.ServiceCompanion
 import io.grpc.ServerServiceDefinition.Builder
-import io.grpc.{Context, Metadata, MethodDescriptor, ServerServiceDefinition}
+import io.grpc._
 import org.eiennohito.grpc.stream.{GrpcNames, ServerCallBuilder}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -43,6 +44,9 @@ class ServiceBuilder(private val bldr: ServerServiceDefinition.Builder) {
 }
 
 object ServiceBuilder {
+  def apply(service: ServiceDescriptor): ServiceBuilder = new ServiceBuilder(service.getName)
+
+  @deprecated("use _Grpc.SERVICE instead", "20180308")
   def apply(grpc: ServiceCompanion[_]): ServiceBuilder = new ServiceBuilder(GrpcNames.svcName(grpc))
   def apply(name: String): ServiceBuilder = new ServiceBuilder(name)
   def apply(bldr: Builder): ServiceBuilder = new ServiceBuilder(bldr)
