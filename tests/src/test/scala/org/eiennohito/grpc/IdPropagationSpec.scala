@@ -24,7 +24,7 @@ class IdPropagationSpec extends GrpcAkkaSpec {
   }
 
   def serverSvc = {
-    val bldr = ServiceBuilder(GreeterGrpc.Greeter)
+    val bldr = ServiceBuilder(GreeterGrpc.SERVICE)
 
     val stage = Source.fromGraph(new IdGraphStage)
     bldr.method(GreeterGrpc.METHOD_SAY_HELLO)

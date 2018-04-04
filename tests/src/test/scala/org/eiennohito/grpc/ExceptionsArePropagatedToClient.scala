@@ -16,7 +16,7 @@ class ExceptionsArePropagatedToClient extends GrpcAkkaSpec {
   override def init = { _.addService(failSvc) }
 
   def failSvc = {
-    val bldr = ServiceBuilder(GreeterGrpc.Greeter)
+    val bldr = ServiceBuilder(GreeterGrpc.SERVICE)
     bldr.method(GreeterGrpc.METHOD_SAY_HELLO).handleWith(Flow[HelloRequest].map(_ => throw new Exception("fail!")))
     bldr.result()
   }
