@@ -23,10 +23,14 @@ import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import io.grpc.MethodDescriptor.MethodType
 import io.grpc.{CallOptions, Channel, Metadata, MethodDescriptor}
-import org.eiennohito.grpc.stream.impl.client.{BidiCallImpl, OneInStreamOutImpl, StreamInOneOutCallImpl, UnaryCallImpl}
+import org.eiennohito.grpc.stream.impl.client.{
+  BidiCallImpl,
+  OneInStreamOutImpl,
+  StreamInOneOutCallImpl,
+  UnaryCallImpl
+}
 
 import scala.concurrent.Future
-
 
 class AStreamChannel(val chan: Channel)
 
@@ -57,7 +61,9 @@ trait OneInStreamOutCall[T, R] extends (T => Source[R, GrpcCallStatus]) with ASt
   def withOpts(cops: CallOptions): OneInStreamOutCall[T, R]
 }
 
-trait StreamInOneOutCall[T, R] extends (() => Sink[T, (GrpcCallStatus, Future[R])]) with AStreamCall[T, R] {
+trait StreamInOneOutCall[T, R]
+    extends (() => Sink[T, (GrpcCallStatus, Future[R])])
+    with AStreamCall[T, R] {
   def apply(): Sink[T, (GrpcCallStatus, Future[R])]
   def withOpts(cops: CallOptions): StreamInOneOutCall[T, R]
 }
@@ -68,7 +74,11 @@ trait BidiStreamCall[T, R] extends AStreamCall[T, R] {
   override def flow: Flow[T, R, GrpcCallStatus]
 }
 
-case class GrpcCallStatus(id: UUID, headers: Future[Metadata], trailers: Future[Metadata], completion: Future[Done])
+case class GrpcCallStatus(
+    id: UUID,
+    headers: Future[Metadata],
+    trailers: Future[Metadata],
+    completion: Future[Done])
 
 class ClientBuilder(chan: Channel, callOptions: CallOptions) {
   def serverStream[T, R](md: MethodDescriptor[T, R]): OneInStreamOutCall[T, R] = {
@@ -93,5 +103,6 @@ class ClientBuilder(chan: Channel, callOptions: CallOptions) {
 }
 
 object ClientBuilder {
-  def apply(chan: Channel, callOptions: CallOptions): ClientBuilder = new ClientBuilder(chan, callOptions)
+  def apply(chan: Channel, callOptions: CallOptions): ClientBuilder =
+    new ClientBuilder(chan, callOptions)
 }

@@ -11,10 +11,11 @@ import org.eiennohito.grpc.stream.client.{GrpcCallStatus, UnaryCall}
   * @since 2016/10/27
   */
 class UnaryCallImpl[Request, Reply](
-  chan: Channel,
-  md: MethodDescriptor[Request, Reply],
-  opts: CallOptions)
-  extends UnaryCall[Request, Reply] with StrictLogging {
+    chan: Channel,
+    md: MethodDescriptor[Request, Reply],
+    opts: CallOptions)
+    extends UnaryCall[Request, Reply]
+    with StrictLogging {
   override def withOpts(copts: CallOptions) = {
     val wrapped = new UnaryCallImpl(chan, md, copts)
     wrapped

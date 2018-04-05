@@ -2,8 +2,14 @@ package org.eiennohito.grpc.stream.impl
 
 import akka.actor.ActorRef
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.stage.{AsyncCallback, GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
-import akka.stream.{Materializer, Attributes, Inlet, Outlet, SinkShape, SourceShape}
+import akka.stream.stage.{
+  AsyncCallback,
+  GraphStageLogic,
+  GraphStageWithMaterializedValue,
+  InHandler,
+  OutHandler
+}
+import akka.stream.{Attributes, Inlet, Materializer, Outlet, SinkShape, SourceShape}
 import com.typesafe.scalalogging.StrictLogging
 import io.grpc.{Context, Metadata, ServerCall, ServerCallHandler, Status}
 import org.eiennohito.grpc.stream.GrpcStreaming
@@ -18,15 +24,19 @@ import scala.util.{Failure, Success}
   * @author eiennohito
   * @since 2016/10/27
   */
-class ServerAkkaStreamHandler[Req: ClassTag, Resp](handler: GrpcStreaming.ServerHandler[Req, Resp, _])(implicit ec: ExecutionContext, mat: Materializer)
-  extends ServerCallHandler[Req, Resp] {
+class ServerAkkaStreamHandler[Req: ClassTag, Resp](
+    handler: GrpcStreaming.ServerHandler[Req, Resp, _])(
+    implicit ec: ExecutionContext,
+    mat: Materializer)
+    extends ServerCallHandler[Req, Resp] {
   override def startCall(call: ServerCall[Req, Resp], headers: Metadata) = {
     new ServerAkkaHandler(call, headers, handler)
   }
 }
 
 class GrpcServerSrc[Req: ClassTag](call: ServerCall[Req, _])
-  extends GraphStageWithMaterializedValue[SourceShape[Req], Future[AsyncCallback[Any]]] with StrictLogging {
+    extends GraphStageWithMaterializedValue[SourceShape[Req], Future[AsyncCallback[Any]]]
+    with StrictLogging {
   val out = Outlet[Req]("GrpcServer.request")
 
   override val shape: SourceShape[Req] = SourceShape(out)
@@ -90,12 +100,14 @@ class GrpcServerSrc[Req: ClassTag](call: ServerCall[Req, _])
 }
 
 class GrpcServerSink[Resp](call: ServerCall[_, Resp])
-  extends GraphStageWithMaterializedValue[SinkShape[Resp], Future[ActorRef]] with StrictLogging {
+    extends GraphStageWithMaterializedValue[SinkShape[Resp], Future[ActorRef]]
+    with StrictLogging {
   val in = Inlet[Resp]("GrpcServer.response")
 
   override val shape = SinkShape(in)
 
-  override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[ActorRef]) = {
+  override def createLogicAndMaterializedValue(
+      inheritedAttributes: Attributes): (GraphStageLogic, Future[ActorRef]) = {
     val promise = Promise[ActorRef]()
     val logic = new GraphStageLogic(shape) with InHandler {
       setHandler(in, this)
@@ -111,7 +123,7 @@ class GrpcServerSink[Resp](call: ServerCall[_, Resp])
       override def preStart() = {
         val actor = getStageActor {
           case (_, GrpcMessages.Complete) => completeStage()
-          case (_, GrpcMessages.Ready) => if (!hasBeenPulled(in)) pull(in)
+          case (_, GrpcMessages.Ready)    => if (!hasBeenPulled(in)) pull(in)
         }
         promise.success(actor.ref)
         pull(in)
@@ -134,15 +146,16 @@ class GrpcServerSink[Resp](call: ServerCall[_, Resp])
 }
 
 class ServerAkkaHandler[Req: ClassTag, Resp](
-  call: ServerCall[Req, Resp],
-  headers: Metadata,
-  handler: GrpcStreaming.ServerHandler[Req, Resp, _])(
-  implicit ec: ExecutionContext,
-  mat: Materializer
-) extends ServerCall.Listener[Req] with StrictLogging {
+    call: ServerCall[Req, Resp],
+    headers: Metadata,
+    handler: GrpcStreaming.ServerHandler[Req, Resp, _])(
+    implicit ec: ExecutionContext,
+    mat: Materializer
+) extends ServerCall.Listener[Req]
+    with StrictLogging {
 
-  private [this] val inputPromise = Promise[AsyncCallback[Any]]()
-  private [this] val outputPromise = Promise[ActorRef]()
+  private[this] val inputPromise = Promise[AsyncCallback[Any]]()
+  private[this] val outputPromise = Promise[ActorRef]()
 
   {
     val ctx = Context.current()
@@ -157,7 +170,7 @@ class ServerAkkaHandler[Req: ClassTag, Resp](
         val baseId = ScalaMetadata.get(headers, ScalaMetadata.ReqId)
 
         val flow = baseId match {
-          case None => f
+          case None     => f
           case Some(id) => f.addAttributes(Attributes(ScalaMetadata.InitialRequestId(id)))
         }
 

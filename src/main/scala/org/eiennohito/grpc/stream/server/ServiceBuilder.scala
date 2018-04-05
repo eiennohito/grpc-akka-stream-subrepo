@@ -32,10 +32,10 @@ import scala.reflect.ClassTag
   * @since 2016/05/04
   */
 class ServiceBuilder(private val bldr: ServerServiceDefinition.Builder) {
-  
-  def this(name: String) = this(ServerServiceDefinition.builder(name)) 
-  
-  def method[T: ClassTag,R](md: MethodDescriptor[T, R]) = {
+
+  def this(name: String) = this(ServerServiceDefinition.builder(name))
+
+  def method[T: ClassTag, R](md: MethodDescriptor[T, R]) = {
     val scb = new ServerCallBuilder[T, R](md)
     new ServiceDefBuilder(bldr, md, scb)
   }
@@ -52,20 +52,25 @@ object ServiceBuilder {
   def apply(bldr: Builder): ServiceBuilder = new ServiceBuilder(bldr)
 }
 
-
 case class CallMetadata(ctx: Context, metadata: Metadata)
 
-class ServiceDefBuilder[T, R](bldr: ServerServiceDefinition.Builder, mdesc: MethodDescriptor[T, R], scb: ServerCallBuilder[T, R]) {
+class ServiceDefBuilder[T, R](
+    bldr: ServerServiceDefinition.Builder,
+    mdesc: MethodDescriptor[T, R],
+    scb: ServerCallBuilder[T, R]) {
   def handleSingle(fn: T => Future[R])(implicit mat: Materializer, ec: ExecutionContext): Unit = {
     val flow = Flow[T].mapAsync(1)(fn)
     handleWith(flow)
   }
 
-  def handleWith[Mat](flow: Flow[T, R, Mat])(implicit mat: Materializer, ec: ExecutionContext): Unit = {
+  def handleWith[Mat](
+      flow: Flow[T, R, Mat])(implicit mat: Materializer, ec: ExecutionContext): Unit = {
     handleWith(_ => Future.successful(flow))
   }
 
-  def handleWith[Mat](flowFactory: CallMetadata => Future[Flow[T, R, Mat]])(implicit mat: Materializer, ec: ExecutionContext): Unit = {
+  def handleWith[Mat](flowFactory: CallMetadata => Future[Flow[T, R, Mat]])(
+      implicit mat: Materializer,
+      ec: ExecutionContext): Unit = {
     val sch = scb.handleWith(flowFactory)
     bldr.addMethod(mdesc, sch)
   }

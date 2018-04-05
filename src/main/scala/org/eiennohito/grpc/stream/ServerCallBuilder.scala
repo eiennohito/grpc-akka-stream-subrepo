@@ -30,9 +30,13 @@ import scala.reflect.ClassTag
   * @author eiennohito
   * @since 2016/04/28
   */
-class ServerCallBuilder[Request: ClassTag, Reply](md: MethodDescriptor[Request, Reply]) extends StrictLogging {
-  def handleWith[T](flow: CallMetadata => Future[Flow[Request, Reply, T]])(implicit mat: Materializer, ec: ExecutionContext) = {
-    val handler: ServerCallHandler[Request, Reply] = new ServerAkkaStreamHandler[Request, Reply](flow)
+class ServerCallBuilder[Request: ClassTag, Reply](md: MethodDescriptor[Request, Reply])
+    extends StrictLogging {
+  def handleWith[T](flow: CallMetadata => Future[Flow[Request, Reply, T]])(
+      implicit mat: Materializer,
+      ec: ExecutionContext) = {
+    val handler: ServerCallHandler[Request, Reply] =
+      new ServerAkkaStreamHandler[Request, Reply](flow)
     handler
   }
 }

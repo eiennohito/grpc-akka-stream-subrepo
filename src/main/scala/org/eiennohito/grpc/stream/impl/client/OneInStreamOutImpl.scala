@@ -8,8 +8,11 @@ import org.eiennohito.grpc.stream.client.{GrpcCallStatus, OneInStreamOutCall}
   * @author eiennohito
   * @since 2016/10/27
   */
-class OneInStreamOutImpl[Req, Resp](chan: Channel, md: MethodDescriptor[Req, Resp], opts: CallOptions)
-  extends OneInStreamOutCall[Req, Resp] {
+class OneInStreamOutImpl[Req, Resp](
+    chan: Channel,
+    md: MethodDescriptor[Req, Resp],
+    opts: CallOptions)
+    extends OneInStreamOutCall[Req, Resp] {
 
   override def withOpts(cops: CallOptions): OneInStreamOutCall[Req, Resp] = {
     new OneInStreamOutImpl[Req, Resp](chan, md, cops)
@@ -21,6 +24,3 @@ class OneInStreamOutImpl[Req, Resp](chan: Channel, md: MethodDescriptor[Req, Res
 
   override val flow = Flow.fromGraph(new GrpcClientHandler[Req, Resp](chan, md, opts))
 }
-
-
-

@@ -17,21 +17,23 @@ import scala.concurrent.Promise
   * @since 2016/10/27
   */
 class GrpcClientHandler[Req, Resp](
-  chan: Channel,
-  md: MethodDescriptor[Req, Resp],
-  opts: CallOptions
+    chan: Channel,
+    md: MethodDescriptor[Req, Resp],
+    opts: CallOptions
 ) extends GraphStageWithMaterializedValue[FlowShape[Req, Resp], GrpcCallStatus] {
   val in = Inlet[Req]("GrpcClient.request")
   val out = Outlet[Resp]("GrpcClient.response")
   val shape = FlowShape(in, out)
 
-  override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, GrpcCallStatus) = {
+  override def createLogicAndMaterializedValue(
+      inheritedAttributes: Attributes): (GraphStageLogic, GrpcCallStatus) = {
 
     val hdrs = Promise[Metadata]()
     val trls = Promise[Metadata]()
     val cmpl = Promise[Done]()
 
-    val myid = inheritedAttributes.get[ScalaMetadata.InitialRequestId].map(_.id).getOrElse(UUID.randomUUID())
+    val myid =
+      inheritedAttributes.get[ScalaMetadata.InitialRequestId].map(_.id).getOrElse(UUID.randomUUID())
 
     val logic = new GraphStageLogic(shape) with InHandler with OutHandler {
       setHandlers(in, out, this)
@@ -118,18 +120,22 @@ class GrpcClientHandler[Req, Resp](
 
       override def preStart() = {
         val actor = getStageActor {
-          case (_, GrpcMessages.Ready) => if (!hasBeenPulled(in) && !isClosed(in)) { pull(in) }
+          case (_, GrpcMessages.Ready)       => if (!hasBeenPulled(in) && !isClosed(in)) { pull(in) }
           case (_, GrpcMessages.Close(t, m)) => handleClose(t, m)
-          case (_, GrpcMessages.Headers(h)) => hdrs.success(h)
-          case (_, x) => handleResp(x.asInstanceOf[Resp])
+          case (_, GrpcMessages.Headers(h))  => hdrs.success(h)
+          case (_, x)                        => handleResp(x.asInstanceOf[Resp])
         }
 
-        call.start(new ClientCall.Listener[Resp] {
-          override def onMessage(message: Resp) = actor.ref ! message
-          override def onClose(status: Status, trailers: Metadata) = actor.ref ! GrpcMessages.Close(status, trailers)
-          override def onHeaders(headers: Metadata) = actor.ref ! GrpcMessages.Headers(headers)
-          override def onReady() = actor.ref ! GrpcMessages.Ready
-        }, ScalaMetadata.make(myid))
+        call.start(
+          new ClientCall.Listener[Resp] {
+            override def onMessage(message: Resp) = actor.ref ! message
+            override def onClose(status: Status, trailers: Metadata) =
+              actor.ref ! GrpcMessages.Close(status, trailers)
+            override def onHeaders(headers: Metadata) = actor.ref ! GrpcMessages.Headers(headers)
+            override def onReady() = actor.ref ! GrpcMessages.Ready
+          },
+          ScalaMetadata.make(myid)
+        )
         request()
         pull(in)
       }
@@ -138,4 +144,3 @@ class GrpcClientHandler[Req, Resp](
     (logic, GrpcCallStatus(myid, hdrs.future, trls.future, cmpl.future))
   }
 }
-

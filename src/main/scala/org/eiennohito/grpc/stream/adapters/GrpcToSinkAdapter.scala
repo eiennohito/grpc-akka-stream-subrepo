@@ -38,14 +38,15 @@ trait ReadyInput {
 }
 
 class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
-  extends GraphStageWithMaterializedValue[SinkShape[T], Future[ReadyHandler]] with StrictLogging {
+    extends GraphStageWithMaterializedValue[SinkShape[T], Future[ReadyHandler]]
+    with StrictLogging {
 
   private val in = Inlet[T]("Grpc.Out")
   override val shape = SinkShape(in)
 
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes) = {
 
-    val hndler =  Promise[ReadyHandler]
+    val hndler = Promise[ReadyHandler]
 
     val logic = new GraphStageLogic(shape) { logic =>
 
@@ -55,8 +56,12 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
         super.preStart()
 
         hndler.success(new ReadyHandler {
-          private val readyCall = getAsyncCallback { _: Unit => signalReady() }
-          private val cancelCall = getAsyncCallback { _: Unit => signalCancel() }
+          private val readyCall = getAsyncCallback { _: Unit =>
+            signalReady()
+          }
+          private val cancelCall = getAsyncCallback { _: Unit =>
+            signalCancel()
+          }
           override def onReady() = readyCall.invoke(())
           override def onCancel() = {
             keepGoing = false
@@ -80,30 +85,34 @@ class GrpcToSinkAdapter[T](data: StreamObserver[T], rdy: ReadyInput)
         logic.completeStage()
       }
 
-      setHandler(in, new InHandler {
-        override def onPush(): Unit = {
-          if (!keepGoing) {
-             return
+      setHandler(
+        in,
+        new InHandler {
+          override def onPush(): Unit = {
+            if (!keepGoing) {
+              return
+            }
+
+            data.onNext(grab(in))
+            if (rdy.isReady) {
+              pull(in)
+            }
           }
 
-          data.onNext(grab(in))
-          if (rdy.isReady) {
-            pull(in)
+          override def onUpstreamFinish() =
+            try {
+              data.onCompleted()
+            } catch {
+              case e: StatusRuntimeException =>
+                logger.debug("grpc status exception", e)
+            }
+
+          override def onUpstreamFailure(ex: Throwable) = {
+            logger.error("signalling error to grpc", ex)
+            data.onError(Status.INTERNAL.withCause(ex).asException())
           }
         }
-
-        override def onUpstreamFinish() = try {
-          data.onCompleted()
-        } catch {
-          case e: StatusRuntimeException =>
-            logger.debug("grpc status exception", e)
-        }
-
-        override def onUpstreamFailure(ex: Throwable) = {
-          logger.error("signalling error to grpc", ex)
-          data.onError(Status.INTERNAL.withCause(ex).asException())
-        }
-      })
+      )
     }
 
     (logic, hndler.future)

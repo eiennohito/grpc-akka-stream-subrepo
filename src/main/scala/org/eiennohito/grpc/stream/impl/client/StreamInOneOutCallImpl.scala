@@ -6,8 +6,11 @@ import akka.stream.scaladsl.{Flow, Keep, Sink}
 import io.grpc.{CallOptions, Channel, MethodDescriptor}
 import org.eiennohito.grpc.stream.client.{GrpcCallStatus, StreamInOneOutCall}
 
-class StreamInOneOutCallImpl[Req, Resp](chan: Channel, md: MethodDescriptor[Req, Resp], opts: CallOptions)
-  extends StreamInOneOutCall[Req, Resp] {
+class StreamInOneOutCallImpl[Req, Resp](
+    chan: Channel,
+    md: MethodDescriptor[Req, Resp],
+    opts: CallOptions)
+    extends StreamInOneOutCall[Req, Resp] {
 
   override def withOpts(cops: CallOptions): StreamInOneOutCall[Req, Resp] = {
     new StreamInOneOutCallImpl[Req, Resp](chan, md, cops)

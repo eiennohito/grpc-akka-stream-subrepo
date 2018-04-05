@@ -22,14 +22,13 @@ import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, OutH
 import io.grpc.stub.StreamObserver
 import org.reactivestreams.Subscription
 
-
 trait Requester extends Subscription {
   def request(number: Int): Unit = this.request(number.toLong)
   def cancel(): Unit
 }
 
 class GrpcToSourceAdapter[T](req: Subscription, rs: RequestStrategy, private var inFlight: Int)
-  extends GraphStageWithMaterializedValue[SourceShape[T], StreamObserver[T]] {
+    extends GraphStageWithMaterializedValue[SourceShape[T], StreamObserver[T]] {
 
   private val out = Outlet[T]("Grpc.In")
   override val shape = SourceShape(out)
@@ -42,9 +41,15 @@ class GrpcToSourceAdapter[T](req: Subscription, rs: RequestStrategy, private var
       var isCompleted = false
 
       observer = new StreamObserver[T] {
-        private val nextAction = getAsyncCallback { x: T => supply(x) }
-        private val errorAction = getAsyncCallback { x: Throwable => logic.failStage(x) }
-        private val completeAction = getAsyncCallback { _: Unit => complete() }
+        private val nextAction = getAsyncCallback { x: T =>
+          supply(x)
+        }
+        private val errorAction = getAsyncCallback { x: Throwable =>
+          logic.failStage(x)
+        }
+        private val completeAction = getAsyncCallback { _: Unit =>
+          complete()
+        }
 
         override def onError(t: Throwable) = errorAction.invoke(t)
         override def onCompleted() = completeAction.invoke(())
@@ -78,21 +83,24 @@ class GrpcToSourceAdapter[T](req: Subscription, rs: RequestStrategy, private var
         }
       }
 
-      setHandler(out, new OutHandler {
-        override def onPull() = {
-          if (queue.nonEmpty) {
-            push(out, queue.dequeue())
-            requestDemand()
-          } else if (isCompleted) {
-            logic.completeStage()
+      setHandler(
+        out,
+        new OutHandler {
+          override def onPull() = {
+            if (queue.nonEmpty) {
+              push(out, queue.dequeue())
+              requestDemand()
+            } else if (isCompleted) {
+              logic.completeStage()
+            }
+          }
+
+          override def onDownstreamFinish() = {
+            req.cancel()
+            super.onDownstreamFinish()
           }
         }
-
-        override def onDownstreamFinish() = {
-          req.cancel()
-          super.onDownstreamFinish()
-        }
-      })
+      )
     }
 
     (logic, observer)

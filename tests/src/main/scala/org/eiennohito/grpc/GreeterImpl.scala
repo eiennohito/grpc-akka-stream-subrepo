@@ -31,14 +31,17 @@ class GreeterImpl extends Greeter {
     Future.successful(HelloReply("Hi, " + request.name))
   }
 
-  override def sayHelloSvrStream(request: HelloRequestStream, responseObserver: StreamObserver[HelloReply]) = {
-    for (i <- 0 until request.number) {
+  override def sayHelloSvrStream(
+      request: HelloRequestStream,
+      responseObserver: StreamObserver[HelloReply]) = {
+    for (i <- 0.until(request.number)) {
       responseObserver.onNext(HelloReply(s"Hi, ${request.name}, #$i"))
     }
     responseObserver.onCompleted()
   }
 
-  def sayHelloClientStream(responseObserver: StreamObserver[HelloStreamReply]): StreamObserver[HelloRequest] =
+  def sayHelloClientStream(
+      responseObserver: StreamObserver[HelloStreamReply]): StreamObserver[HelloRequest] =
     new StreamObserver[HelloRequest] {
       val arr = mutable.ArrayBuffer.empty[HelloRequest]
       def onError(t: Throwable): Unit = responseObserver.onError(t)

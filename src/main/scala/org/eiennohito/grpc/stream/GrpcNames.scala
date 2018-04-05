@@ -19,7 +19,6 @@ package org.eiennohito.grpc.stream
 import scalapb.grpc.{AbstractService, ServiceCompanion}
 import io.grpc.{MethodDescriptor, ServiceDescriptor}
 
-
 /**
   * @author eiennohito
   * @since 2016/05/04

@@ -31,7 +31,6 @@ object ScalaMetadata {
     base
   }
 
-
   def make(id: UUID): Metadata = {
     val obj = new Metadata()
     obj.put(ReqId, id)
