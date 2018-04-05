@@ -3,8 +3,25 @@ import sbt.internal.LoadedBuild
 lazy val defaults = Def.settings(
   organization := "org.eiennohito",
   version := "0.1-SNAPSHOT",
+  description := "Akka-Stream bindings for gRPC",
   (scalaVersion in ThisBuild) := (if (isRoot(loadedBuild.value, thisProject.value)) "2.12.4" else scalaVersion.value),
-  crossScalaVersions := Seq("2.11.12", "2.12.4")
+  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+  licenses := Seq(
+    "Apache 2" -> new URL("https://www.apache.org/licenses/LICENSE-2.0")
+  ),
+  scmInfo := Some(ScmInfo(
+    browseUrl = new URL("https://github.com/eiennohito/grpc-akka-stream-subrepo"),
+    connection = "git+ssh://git@github.com:eiennohito/grpc-akka-stream-subrepo.git"
+  )),
+  developers := List(
+    Developer(
+      id = "eiennohito",
+      name = "Arseny Tolmachev",
+      email = "arseny@kotonoha.ws",
+      url = new URL("https://github.com/eiennohito")
+    )
+  ),
+  pomIncludeRepository := (_ => false)
 )
 
 lazy val coreDeps = Def.settings(
@@ -28,7 +45,7 @@ lazy val `grpc-streaming` =
   (project in file("."))
   .settings(defaults, coreDeps)
 
-lazy val `grpc-tests` =
+lazy val `grpc-tests`: Project =
   (project in file("tests"))
   .settings(defaults, pbScala())
   .settings(
@@ -40,7 +57,8 @@ lazy val `grpc-tests` =
       "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.9" % Test,
       "org.scalatest" %% "scalatest" % "3.0.5" % Test,
       "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % Test
-    )
+    ),
+    publishArtifact := false
   )
   .dependsOn(`grpc-streaming`)
 
