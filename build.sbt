@@ -3,7 +3,6 @@ import sbt.internal.LoadedBuild
 lazy val defaults = Def.settings(
   organization := "org.eiennohito",
   version := "0.1-SNAPSHOT",
-  description := "Akka-Stream bindings for gRPC",
   (scalaVersion in ThisBuild) := (if (isRoot(loadedBuild.value, thisProject.value)) "2.12.4" else scalaVersion.value),
   crossScalaVersions := Seq("2.11.12", "2.12.4"),
   licenses := Seq(
@@ -11,7 +10,7 @@ lazy val defaults = Def.settings(
   ),
   scmInfo := Some(ScmInfo(
     browseUrl = new URL("https://github.com/eiennohito/grpc-akka-stream-subrepo"),
-    connection = "git+ssh://git@github.com:eiennohito/grpc-akka-stream-subrepo.git"
+    connection = "scm:git@github.com:eiennohito/grpc-akka-stream-subrepo.git"
   )),
   developers := List(
     Developer(
@@ -21,7 +20,16 @@ lazy val defaults = Def.settings(
       url = new URL("https://github.com/eiennohito")
     )
   ),
-  pomIncludeRepository := (_ => false)
+  pomIncludeRepository := (_ => false),
+  publishMavenStyle := true,
+  publishTo := {
+    val nexus = "https://oss.sonatype.org/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    else
+      Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+  },
+  publishArtifact in Test := false
 )
 
 lazy val coreDeps = Def.settings(
@@ -44,6 +52,10 @@ def isRoot(bld: LoadedBuild, proj: ResolvedProject): Boolean = {
 lazy val `grpc-streaming` =
   (project in file("."))
   .settings(defaults, coreDeps)
+  .settings(
+    name := "akka-stream-grpc",
+    description := "Akka-Stream bindings for gRPC",
+  )
 
 lazy val `grpc-tests`: Project =
   (project in file("tests"))
